@@ -1,0 +1,40 @@
+# Gradle and build outputs
+.gradle/
+build/
+*/build/
+.gradle-user/
+.gradle-user-*/
+**/.gradle/
+.gradle-user-release/
+**/.gradle-user-release/
+**/build/
+
+# Local configuration
+local.properties
+*.iml
+
+# IDEs
+.idea/
+.vscode/
+.vs/
+
+# Android tooling
+captures/
+.externalNativeBuild/
+.cxx/
+.android-user/
+
+# Outputs
+*.apk
+*.aab
+
+# Profiling / logs
+*.hprof
+
+# Keystores (local only)
+*.jks
+*.keystore
+
+# Mac / Windows noise
+.DS_Store
+Thumbs.db

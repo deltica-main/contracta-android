@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Contactra</string>
+    <string name="brand_attribution">by Deltica</string>
+    <string name="brand_full_name">Contactra by Deltica</string>
+
+    <string name="support_screen_title">Support</string>
+    <string name="support_intro_title">We are here to help.</string>
+    <string name="support_intro_subtitle">Browse FAQs and contact support if you need help.</string>
+    <string name="support_faqs_title">FAQs</string>
+    <string name="support_contact_title">Contact support</string>
+    <string name="support_contact_email_label">Support email</string>
+    <string name="support_contact_button">Email support</string>
+    <string name="support_contact_no_email_app">No email app found. Please install an email app and try again.</string>
+
+
+
+
+
+
+
+
+</resources>

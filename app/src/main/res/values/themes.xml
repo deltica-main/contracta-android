@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Theme.Contactra" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Primary brand color. -->
+        <item name="colorPrimary">@color/delta_blue</item>
+        <item name="colorPrimaryVariant">@color/delta_blue_soft</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorSecondary">@color/delta_navy</item>
+        <item name="colorSecondaryVariant">@color/delta_blue_soft</item>
+        <item name="colorOnSecondary">@color/white</item>
+        <!-- Status bar coloring -->
+        <item name="android:statusBarColor" tools:targetApi="l">@android:color/transparent</item>
+    </style>
+</resources>
