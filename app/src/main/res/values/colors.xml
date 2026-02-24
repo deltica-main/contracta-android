@@ -1,12 +1,12 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="delta_blue">#2E3A59</color>
-    <color name="delta_blue_soft">#E3E8F2</color>
-    <color name="delta_navy">#4E5A6E</color>
-    <color name="delta_ink">#111418</color>
-    <color name="delta_surface">#F6F7F9</color>
-    <color name="delta_surface_variant">#EDEFF3</color>
-    <color name="delta_outline">#C8CED8</color>
+    <color name="delta_blue">#0A54B5</color>
+    <color name="delta_blue_soft">#DCE9FF</color>
+    <color name="delta_navy">#1A73DA</color>
+    <color name="delta_ink">#0A1730</color>
+    <color name="delta_surface">#F4F8FF</color>
+    <color name="delta_surface_variant">#E8F0FF</color>
+    <color name="delta_outline">#C9D8EE</color>
     <color name="white">#FFFFFF</color>
     <color name="black">#000000</color>
 </resources>

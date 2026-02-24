@@ -1,4 +1,4 @@
-package com.example.businesscardscanner.ui.theme
+﻿package com.example.businesscardscanner.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,37 +15,37 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-private val SlatePrimary = Color(0xFF2E3A59)
-private val AppSurface = Color(0xFFF6F7F9)
+private val SlatePrimary = Color(0xFF0A54B5)
+private val AppSurface = Color(0xFFF4F8FF)
 private val AppSurfaceElevated = Color(0xFFFFFFFF)
-private val AppOnSurface = Color(0xFF111418)
-private val AppMutedText = Color(0xFF616A75)
+private val AppOnSurface = Color(0xFF0A1730)
+private val AppMutedText = Color(0xFF4B5F7D)
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFFAFBDD8),
-    onPrimary = Color(0xFF1A2438),
-    primaryContainer = Color(0xFF3A4764),
-    onPrimaryContainer = Color(0xFFE0E6F5),
-    secondary = Color(0xFFB5C1D2),
-    onSecondary = Color(0xFF1F2A3B),
-    secondaryContainer = Color(0xFF313D4D),
-    onSecondaryContainer = Color(0xFFD8E2F1),
-    tertiary = Color(0xFF9EAAB9),
-    onTertiary = Color(0xFF202A37),
-    tertiaryContainer = Color(0xFF344050),
-    onTertiaryContainer = Color(0xFFD8E2F0),
-    background = Color(0xFF0F131A),
-    onBackground = Color(0xFFE7EBF2),
-    surface = Color(0xFF11161D),
-    onSurface = Color(0xFFE7EBF2),
-    surfaceVariant = Color(0xFF1C222C),
-    onSurfaceVariant = Color(0xFFA3ACB8),
-    outline = Color(0xFF4A5361),
-    outlineVariant = Color(0xFF313A47),
+    primary = Color(0xFFA9C9FF),
+    onPrimary = Color(0xFF03224F),
+    primaryContainer = Color(0xFF1A4E91),
+    onPrimaryContainer = Color(0xFFD9E8FF),
+    secondary = Color(0xFF98C4FF),
+    onSecondary = Color(0xFF052956),
+    secondaryContainer = Color(0xFF1A3D73),
+    onSecondaryContainer = Color(0xFFD6E7FF),
+    tertiary = Color(0xFFB1C4E5),
+    onTertiary = Color(0xFF0B274B),
+    tertiaryContainer = Color(0xFF27466E),
+    onTertiaryContainer = Color(0xFFD8E8FF),
+    background = Color(0xFF070F1D),
+    onBackground = Color(0xFFE5EEFF),
+    surface = Color(0xFF0C1526),
+    onSurface = Color(0xFFE5EEFF),
+    surfaceVariant = Color(0xFF18253A),
+    onSurfaceVariant = Color(0xFFA5B6D1),
+    outline = Color(0xFF3E5372),
+    outlineVariant = Color(0xFF2B3E5A),
     error = Color(0xFFFFB4AB),
     onError = Color(0xFF690005),
     errorContainer = Color(0xFF93000A),
@@ -55,24 +55,24 @@ private val DarkColorScheme = darkColorScheme(
 private val LightColorScheme = lightColorScheme(
     primary = SlatePrimary,
     onPrimary = AppSurfaceElevated,
-    primaryContainer = Color(0xFFE3E8F2),
-    onPrimaryContainer = Color(0xFF1F2A40),
-    secondary = Color(0xFF4E5A6E),
+    primaryContainer = Color(0xFFDCE9FF),
+    onPrimaryContainer = Color(0xFF0C2E62),
+    secondary = Color(0xFF1A73DA),
     onSecondary = Color(0xFFFFFFFF),
-    secondaryContainer = Color(0xFFE7ECF3),
-    onSecondaryContainer = Color(0xFF253042),
-    tertiary = Color(0xFF6A7587),
+    secondaryContainer = Color(0xFFE6F0FF),
+    onSecondaryContainer = Color(0xFF0A2A57),
+    tertiary = Color(0xFF2E5FA6),
     onTertiary = Color(0xFFFFFFFF),
-    tertiaryContainer = Color(0xFFE9EDF3),
-    onTertiaryContainer = Color(0xFF293346),
+    tertiaryContainer = Color(0xFFEAF2FF),
+    onTertiaryContainer = Color(0xFF0B2E5F),
     background = AppSurface,
     onBackground = AppOnSurface,
     surface = AppSurface,
     onSurface = AppOnSurface,
-    surfaceVariant = Color(0xFFEDEFF3),
+    surfaceVariant = Color(0xFFE8F0FF),
     onSurfaceVariant = AppMutedText,
-    outline = Color(0xFFC8CED8),
-    outlineVariant = Color(0xFFE0E4EB),
+    outline = Color(0xFFC9D8EE),
+    outlineVariant = Color(0xFFDBE6F8),
     error = Color(0xFFBA1A1A),
     onError = Color(0xFFFFFFFF),
     errorContainer = Color(0xFFFFDAD6),
