@@ -1,21 +1,22 @@
 package com.example.businesscardscanner.ui.components
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import com.example.businesscardscanner.ui.theme.AppDimens
+import com.example.businesscardscanner.ui.theme.AppTheme
 
 @Composable
 fun AppCard(
@@ -23,8 +24,8 @@ fun AppCard(
     contentPadding: PaddingValues = PaddingValues(AppDimens.lg),
     onClick: (() -> Unit)? = null,
     border: BorderStroke? = BorderStroke(
-        width = 1.dp,
-        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
+        width = AppDimens.divider,
+        color = AppTheme.colors.border.copy(alpha = 0.78f)
     ),
     content: @Composable () -> Unit
 ) {
@@ -42,8 +43,9 @@ fun AppCard(
         Surface(
             modifier = cardModifier,
             shape = MaterialTheme.shapes.large,
-            color = MaterialTheme.colorScheme.surfaceContainerLowest,
-            tonalElevation = 1.dp,
+            color = AppTheme.colors.surfaceStrong,
+            tonalElevation = 0.dp,
+            shadowElevation = AppDimens.cardElevation,
             border = border
         ) {
             Box(modifier = Modifier.padding(contentPadding)) {
@@ -55,8 +57,9 @@ fun AppCard(
             onClick = onClick,
             modifier = cardModifier,
             shape = MaterialTheme.shapes.large,
-            color = MaterialTheme.colorScheme.surfaceContainerLowest,
-            tonalElevation = 1.dp,
+            color = AppTheme.colors.surfaceStrong,
+            tonalElevation = 0.dp,
+            shadowElevation = AppDimens.cardElevation,
             border = border,
             interactionSource = interactionSource
         ) {

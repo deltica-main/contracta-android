@@ -1,16 +1,17 @@
 package com.example.businesscardscanner.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -19,14 +20,13 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.businesscardscanner.ui.theme.AppDimens
+import com.example.businesscardscanner.ui.theme.AppTheme
 import com.example.businesscardscanner.ui.theme.AppTypeTokens
 
 private val AppButtonContentPadding = PaddingValues(
     horizontal = AppDimens.lg,
-    vertical = AppDimens.sm
+    vertical = AppDimens.md
 )
-
-private val AppButtonShape = RoundedCornerShape(AppDimens.buttonRadius)
 
 @Composable
 fun PrimaryButton(
@@ -39,18 +39,20 @@ fun PrimaryButton(
     Button(
         onClick = onClick,
         modifier = modifier
-            .defaultMinSize(minWidth = 120.dp)
+            .defaultMinSize(minWidth = AppDimens.buttonMinWidth)
             .heightIn(min = AppDimens.buttonHeight),
         enabled = enabled,
-        shape = AppButtonShape,
+        shape = MaterialTheme.shapes.extraLarge,
         colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary
+            containerColor = AppTheme.colors.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            disabledContainerColor = AppTheme.colors.primary.copy(alpha = 0.56f),
+            disabledContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.82f)
         ),
         contentPadding = AppButtonContentPadding,
         elevation = ButtonDefaults.buttonElevation(
-            defaultElevation = 1.dp,
-            pressedElevation = 2.dp,
+            defaultElevation = AppDimens.cardElevation,
+            pressedElevation = AppDimens.floatingElevation,
             disabledElevation = 0.dp
         )
     ) {
@@ -58,7 +60,7 @@ fun PrimaryButton(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(AppDimens.iconSizeSm)
             )
             Spacer(modifier = Modifier.width(AppDimens.sm))
         }
@@ -79,14 +81,22 @@ fun SecondaryButton(
     enabled: Boolean = true,
     icon: ImageVector? = null
 ) {
-    TextButton(
+    OutlinedButton(
         onClick = onClick,
         modifier = modifier
-            .defaultMinSize(minWidth = 120.dp)
+            .defaultMinSize(minWidth = AppDimens.buttonMinWidth)
             .heightIn(min = AppDimens.buttonHeight),
         enabled = enabled,
-        colors = ButtonDefaults.textButtonColors(
-            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+        shape = MaterialTheme.shapes.extraLarge,
+        border = BorderStroke(
+            width = AppDimens.divider,
+            color = AppTheme.colors.border
+        ),
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = AppTheme.colors.surfaceStrong,
+            contentColor = AppTheme.colors.accent,
+            disabledContainerColor = AppTheme.colors.surfaceMuted,
+            disabledContentColor = AppTheme.colors.textSecondary.copy(alpha = 0.78f)
         ),
         contentPadding = AppButtonContentPadding
     ) {
@@ -94,8 +104,7 @@ fun SecondaryButton(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                modifier = Modifier.size(18.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                modifier = Modifier.size(AppDimens.iconSizeSm)
             )
             Spacer(modifier = Modifier.width(AppDimens.sm))
         }
@@ -118,16 +127,21 @@ fun GhostButton(
     TextButton(
         onClick = onClick,
         modifier = modifier
-            .defaultMinSize(minWidth = 72.dp)
+            .defaultMinSize(minWidth = AppDimens.buttonMinWidth)
             .heightIn(min = AppDimens.touchTargetCompact),
         enabled = enabled,
+        shape = MaterialTheme.shapes.extraLarge,
         colors = ButtonDefaults.textButtonColors(
-            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+            contentColor = AppTheme.colors.accent,
+            disabledContentColor = AppTheme.colors.textSecondary.copy(alpha = 0.72f)
+        ),
+        contentPadding = AppButtonContentPadding
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.labelLarge
+            style = AppTypeTokens.buttonText,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
@@ -143,17 +157,19 @@ fun DangerButton(
     Button(
         onClick = onClick,
         modifier = modifier
-            .defaultMinSize(minWidth = 120.dp)
+            .defaultMinSize(minWidth = AppDimens.buttonMinWidth)
             .heightIn(min = AppDimens.buttonHeight),
         enabled = enabled,
-        shape = AppButtonShape,
+        shape = MaterialTheme.shapes.extraLarge,
         colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.42f),
-            contentColor = MaterialTheme.colorScheme.error
+            containerColor = AppTheme.colors.error.copy(alpha = 0.12f),
+            contentColor = AppTheme.colors.error,
+            disabledContainerColor = AppTheme.colors.error.copy(alpha = 0.08f),
+            disabledContentColor = AppTheme.colors.error.copy(alpha = 0.62f)
         ),
         elevation = ButtonDefaults.buttonElevation(
-            defaultElevation = 0.dp,
-            pressedElevation = 1.dp,
+            defaultElevation = AppDimens.subtleElevation,
+            pressedElevation = AppDimens.cardElevation,
             disabledElevation = 0.dp
         ),
         contentPadding = AppButtonContentPadding
@@ -162,7 +178,7 @@ fun DangerButton(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(AppDimens.iconSizeSm)
             )
             Spacer(modifier = Modifier.width(AppDimens.sm))
         }

@@ -29,14 +29,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.PhotoLibrary
@@ -56,12 +54,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
@@ -71,13 +67,17 @@ import com.example.businesscardscanner.data.ocr.TextRecognitionManager
 import com.example.businesscardscanner.ui.components.AppBackground
 import com.example.businesscardscanner.ui.components.AppCard
 import com.example.businesscardscanner.ui.components.AppTopBar
+import com.example.businesscardscanner.ui.components.BottomActionBar
 import com.example.businesscardscanner.ui.components.EmptyState
 import com.example.businesscardscanner.ui.components.LoadingState
 import com.example.businesscardscanner.ui.components.PrimaryButton
 import com.example.businesscardscanner.ui.components.SecondaryButton
+import com.example.businesscardscanner.ui.components.StatusPill
+import com.example.businesscardscanner.ui.components.StatusPillTone
 import com.example.businesscardscanner.ui.components.StepIndicator
 import com.example.businesscardscanner.ui.navigation.Screen
 import com.example.businesscardscanner.ui.theme.AppDimens
+import com.example.businesscardscanner.ui.theme.AppTheme
 import com.example.businesscardscanner.ui.viewmodel.MainViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -1007,8 +1007,12 @@ fun ScanScreen(
                                 factory = { previewView },
                                 modifier = Modifier
                                     .matchParentSize()
-                                    .border(AppDimens.xs / 4, MaterialTheme.colorScheme.outline, MaterialTheme.shapes.large)
-                                    .background(Color.Black)
+                                    .border(
+                                        width = AppDimens.divider,
+                                        color = AppTheme.colors.border,
+                                        shape = MaterialTheme.shapes.large
+                                    )
+                                    .background(AppTheme.colors.surfaceMuted)
                             )
                             Box(
                                 modifier = Modifier
@@ -1016,26 +1020,21 @@ fun ScanScreen(
                                     .fillMaxWidth(0.9f)
                                     .aspectRatio(1.75f)
                                     .border(
-                                        AppDimens.xs / 2,
-                                        MaterialTheme.colorScheme.primary,
-                                        RoundedCornerShape(AppDimens.fieldRadius)
+                                        width = AppDimens.outline,
+                                        color = AppTheme.colors.primary.copy(alpha = 0.92f),
+                                        shape = MaterialTheme.shapes.large
                                     )
                             )
-                            Text(
-                                text = cameraStatusHint,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                style = MaterialTheme.typography.labelMedium,
+                            StatusPill(
+                                label = cameraStatusHint,
+                                tone = when {
+                                    autoCaptureInFlight -> StatusPillTone.Brand
+                                    autoCaptureEnabled && isCameraReady -> StatusPillTone.Success
+                                    else -> StatusPillTone.Neutral
+                                },
                                 modifier = Modifier
                                     .align(Alignment.TopCenter)
                                     .padding(top = AppDimens.sm)
-                                    .background(
-                                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.76f),
-                                        shape = RoundedCornerShape(AppDimens.sm)
-                                    )
-                                    .padding(
-                                        horizontal = AppDimens.md,
-                                        vertical = AppDimens.xs + (AppDimens.xs / 2)
-                                    )
                             )
                             Box(
                                 modifier = Modifier
@@ -1109,24 +1108,34 @@ fun ScanScreen(
                     }
                 }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(AppDimens.sm)
+                BottomActionBar(
+                    supportingContent = {
+                        StatusPill(
+                            label = if (unavailableType == null) {
+                                "On-device processing"
+                            } else {
+                                "Photo import available"
+                            },
+                            tone = StatusPillTone.Brand
+                        )
+                    },
+                    secondaryAction = {
+                        SecondaryButton(
+                            text = "Import",
+                            onClick = { galleryLauncher.launch("image/*") },
+                            modifier = Modifier.fillMaxWidth(),
+                            icon = Icons.Filled.PhotoLibrary
+                        )
+                    }
                 ) {
                     PrimaryButton(
                         text = "Capture",
                         onClick = {
                             captureNowState.value(false)
                         },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.fillMaxWidth(),
                         icon = Icons.Filled.CameraAlt,
                         enabled = hasCameraPermission && isCameraReady
-                    )
-                    SecondaryButton(
-                        text = "Import",
-                        onClick = { galleryLauncher.launch("image/*") },
-                        modifier = Modifier.weight(1f),
-                        icon = Icons.Filled.PhotoLibrary
                     )
                 }
                 Spacer(modifier = Modifier.height(AppDimens.sm))

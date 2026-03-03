@@ -13,8 +13,8 @@ import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import com.example.businesscardscanner.ui.theme.AppDimens
+import com.example.businesscardscanner.ui.theme.AppTheme
 
 @Composable
 fun AppAlertDialog(
@@ -53,8 +53,8 @@ fun AppAlertDialog(
                 confirmButton()
             }
         },
-        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = MaterialTheme.shapes.medium,
-        tonalElevation = 1.dp
+        containerColor = AppTheme.colors.surfaceStrong,
+        shape = MaterialTheme.shapes.large,
+        tonalElevation = AppDimens.subtleElevation
     )
 }

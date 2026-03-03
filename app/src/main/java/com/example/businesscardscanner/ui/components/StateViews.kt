@@ -39,12 +39,23 @@ fun LoadingState(message: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun EmptyState(title: String, subtitle: String, modifier: Modifier = Modifier) {
+fun EmptyStateView(
+    title: String,
+    subtitle: String,
+    modifier: Modifier = Modifier,
+    tone: StatusPillTone = StatusPillTone.Neutral
+) {
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        StatusPill(
+            label = if (tone == StatusPillTone.Error) "Needs Attention" else "Ready",
+            tone = tone,
+            showDot = tone != StatusPillTone.Neutral
+        )
+        Spacer(modifier = Modifier.height(AppDimens.sm))
         Text(
             text = title,
             style = AppTypeTokens.sectionTitle,
@@ -62,25 +73,20 @@ fun EmptyState(title: String, subtitle: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
+fun EmptyState(title: String, subtitle: String, modifier: Modifier = Modifier) {
+    EmptyStateView(
+        title = title,
+        subtitle = subtitle,
+        modifier = modifier
+    )
+}
+
+@Composable
 fun ErrorState(title: String, subtitle: String, modifier: Modifier = Modifier) {
-    Column(
+    EmptyStateView(
+        title = title,
+        subtitle = subtitle,
         modifier = modifier,
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = title,
-            style = AppTypeTokens.sectionTitle,
-            color = MaterialTheme.colorScheme.error,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(AppDimens.xs))
-        Text(
-            text = subtitle,
-            style = AppTypeTokens.body,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth(0.92f)
-        )
-    }
+        tone = StatusPillTone.Error
+    )
 }

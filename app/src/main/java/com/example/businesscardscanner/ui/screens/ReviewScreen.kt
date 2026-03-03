@@ -51,7 +51,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavController
 import com.example.businesscardscanner.ui.components.AppBackground
@@ -60,6 +59,9 @@ import com.example.businesscardscanner.ui.components.AppCard
 import com.example.businesscardscanner.ui.components.AppModalBottomSheet
 import com.example.businesscardscanner.ui.components.AppTopBar
 import com.example.businesscardscanner.ui.components.BusinessCardBitmap
+import com.example.businesscardscanner.ui.components.BottomActionBar
+import com.example.businesscardscanner.ui.components.ConfidenceBadge
+import com.example.businesscardscanner.ui.components.EditableFieldRow
 import com.example.businesscardscanner.ui.components.EmptyState
 import com.example.businesscardscanner.ui.components.GhostButton
 import com.example.businesscardscanner.ui.components.SuggestionOption
@@ -68,6 +70,8 @@ import com.example.businesscardscanner.ui.components.LoadingState
 import com.example.businesscardscanner.ui.components.PrimaryButton
 import com.example.businesscardscanner.ui.components.SecondaryButton
 import com.example.businesscardscanner.ui.components.SectionHeader
+import com.example.businesscardscanner.ui.components.StatusPill
+import com.example.businesscardscanner.ui.components.StatusPillTone
 import com.example.businesscardscanner.ui.components.StepIndicator
 import com.example.businesscardscanner.ui.navigation.Screen
 import com.example.businesscardscanner.ui.theme.AppDimens
@@ -176,12 +180,18 @@ fun ReviewScreen(navController: NavController, viewModel: MainViewModel) {
                 scanState.lastCapturedImage?.let { bitmap ->
                     AppCard(
                         modifier = Modifier.fillMaxWidth(),
-                        contentPadding = PaddingValues(AppDimens.sm)
+                        contentPadding = PaddingValues(AppDimens.md)
                     ) {
-                        BusinessCardBitmap(
-                            bitmap = bitmap,
-                            contentDescription = "Captured business card"
-                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(AppDimens.md)) {
+                            SectionHeader(
+                                title = "Captured preview",
+                                supportingText = "Verify the card before saving."
+                            )
+                            BusinessCardBitmap(
+                                bitmap = bitmap,
+                                contentDescription = "Captured business card"
+                            )
+                        }
                     }
                 }
 
@@ -224,112 +234,182 @@ fun ReviewScreen(navController: NavController, viewModel: MainViewModel) {
                         )
                     }
                     else -> {
+                        StatusPill(
+                            label = scanState.parserNoticeMessage ?: "Parsed results ready",
+                            tone = if (scanState.parserNoticeMessage != null) {
+                                StatusPillTone.Warning
+                            } else {
+                                StatusPillTone.Success
+                            }
+                        )
+
                         AppCard(modifier = Modifier.fillMaxWidth()) {
                             Column(verticalArrangement = Arrangement.spacedBy(AppDimens.md)) {
-                                SectionHeader(title = "Contact details")
-                                SuggestionPickerField(
-                                    label = "Name",
-                                    value = fields.name,
-                                    onValueChange = { value ->
-                                        viewModel.updateReviewFields { current -> current.copy(name = value) }
-                                    },
-                                    suggestions = nameOptions,
-                                    fromUnassigned = if (fields.name.isBlank()) unassignedForName else emptyList(),
-                                    onSelectFromUnassigned = { option ->
-                                        viewModel.assignUnassignedItem(
-                                            itemId = option.value,
-                                            targetField = ReviewAssignmentField.NAME
+                                SectionHeader(
+                                    title = "Core details",
+                                    supportingText = "Review required fields before saving."
+                                )
+                                EditableFieldRow(
+                                    badge = {
+                                        ConfidenceBadge(level = scanState.fieldConfidence.name)
+                                    }
+                                ) {
+                                    SuggestionPickerField(
+                                        label = "Name",
+                                        value = fields.name,
+                                        onValueChange = { value ->
+                                            viewModel.updateReviewFields { current -> current.copy(name = value) }
+                                        },
+                                        suggestions = nameOptions,
+                                        fromUnassigned = if (fields.name.isBlank()) unassignedForName else emptyList(),
+                                        onSelectFromUnassigned = { option ->
+                                            viewModel.assignUnassignedItem(
+                                                itemId = option.value,
+                                                targetField = ReviewAssignmentField.NAME
+                                            )
+                                        },
+                                        helperText = "Need name or company",
+                                        isError = missingNameAndCompany,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                                EditableFieldRow(
+                                    badge = {
+                                        ConfidenceBadge(level = scanState.fieldConfidence.title)
+                                    }
+                                ) {
+                                    SuggestionPickerField(
+                                        label = "Title",
+                                        value = fields.title,
+                                        onValueChange = { value ->
+                                            viewModel.updateReviewFields { current -> current.copy(title = value) }
+                                        },
+                                        suggestions = titleOptions,
+                                        fromUnassigned = if (fields.title.isBlank()) unassignedForTitle else emptyList(),
+                                        onSelectFromUnassigned = { option ->
+                                            viewModel.assignUnassignedItem(
+                                                itemId = option.value,
+                                                targetField = ReviewAssignmentField.TITLE
+                                            )
+                                        },
+                                        helperText = "Optional",
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                                EditableFieldRow(
+                                    badge = {
+                                        ConfidenceBadge(level = scanState.fieldConfidence.company)
+                                    }
+                                ) {
+                                    SuggestionPickerField(
+                                        label = "Company",
+                                        value = fields.company,
+                                        onValueChange = { value ->
+                                            viewModel.updateReviewFields { current -> current.copy(company = value) }
+                                        },
+                                        suggestions = companyOptions,
+                                        fromUnassigned = if (fields.company.isBlank()) unassignedForCompany else emptyList(),
+                                        onSelectFromUnassigned = { option ->
+                                            viewModel.assignUnassignedItem(
+                                                itemId = option.value,
+                                                targetField = ReviewAssignmentField.COMPANY
+                                            )
+                                        },
+                                        helperText = "Need name or company",
+                                        isError = missingNameAndCompany,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                            }
+                        }
+
+                        AppCard(modifier = Modifier.fillMaxWidth()) {
+                            Column(verticalArrangement = Arrangement.spacedBy(AppDimens.md)) {
+                                SectionHeader(
+                                    title = "Contact channels",
+                                    supportingText = "Inferred from OCR and ready for review."
+                                )
+                                EditableFieldRow(
+                                    badge = {
+                                        ConfidenceBadge(level = scanState.fieldConfidence.email)
+                                    }
+                                ) {
+                                    SuggestionPickerField(
+                                        label = "Email",
+                                        value = fields.email,
+                                        onValueChange = { value ->
+                                            viewModel.updateReviewFields { current -> current.copy(email = value) }
+                                        },
+                                        suggestions = emailOptions,
+                                        helperText = "Optional",
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                                EditableFieldRow(
+                                    badge = {
+                                        ConfidenceBadge(level = scanState.fieldConfidence.phone)
+                                    }
+                                ) {
+                                    SuggestionPickerField(
+                                        label = "Phone",
+                                        value = fields.phone,
+                                        onValueChange = { value ->
+                                            viewModel.updateReviewFields { current -> current.copy(phone = value) }
+                                        },
+                                        suggestions = phoneOptions,
+                                        helperText = "Optional",
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                                EditableFieldRow(
+                                    badge = {
+                                        ConfidenceBadge(level = scanState.fieldConfidence.website)
+                                    }
+                                ) {
+                                    SuggestionPickerField(
+                                        label = "Website",
+                                        value = fields.website,
+                                        onValueChange = { value ->
+                                            viewModel.updateReviewFields { current -> current.copy(website = value) }
+                                        },
+                                        suggestions = websiteOptions,
+                                        helperText = "Optional",
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                                EditableFieldRow(
+                                    badge = {
+                                        StatusPill(
+                                            label = if (fields.address.isBlank()) "Needs Review" else "Ready",
+                                            tone = if (fields.address.isBlank()) {
+                                                StatusPillTone.Warning
+                                            } else {
+                                                StatusPillTone.Neutral
+                                            }
                                         )
-                                    },
-                                    helperText = "Need name or company",
-                                    isError = missingNameAndCompany,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                                SuggestionPickerField(
-                                    label = "Title",
-                                    value = fields.title,
-                                    onValueChange = { value ->
-                                        viewModel.updateReviewFields { current -> current.copy(title = value) }
-                                    },
-                                    suggestions = titleOptions,
-                                    fromUnassigned = if (fields.title.isBlank()) unassignedForTitle else emptyList(),
-                                    onSelectFromUnassigned = { option ->
-                                        viewModel.assignUnassignedItem(
-                                            itemId = option.value,
-                                            targetField = ReviewAssignmentField.TITLE
-                                        )
-                                    },
-                                    helperText = "Optional",
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                                SuggestionPickerField(
-                                    label = "Company",
-                                    value = fields.company,
-                                    onValueChange = { value ->
-                                        viewModel.updateReviewFields { current -> current.copy(company = value) }
-                                    },
-                                    suggestions = companyOptions,
-                                    fromUnassigned = if (fields.company.isBlank()) unassignedForCompany else emptyList(),
-                                    onSelectFromUnassigned = { option ->
-                                        viewModel.assignUnassignedItem(
-                                            itemId = option.value,
-                                            targetField = ReviewAssignmentField.COMPANY
-                                        )
-                                    },
-                                    helperText = "Need name or company",
-                                    isError = missingNameAndCompany,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                                SuggestionPickerField(
-                                    label = "Email",
-                                    value = fields.email,
-                                    onValueChange = { value ->
-                                        viewModel.updateReviewFields { current -> current.copy(email = value) }
-                                    },
-                                    suggestions = emailOptions,
-                                    helperText = "Optional",
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                                SuggestionPickerField(
-                                    label = "Phone",
-                                    value = fields.phone,
-                                    onValueChange = { value ->
-                                        viewModel.updateReviewFields { current -> current.copy(phone = value) }
-                                    },
-                                    suggestions = phoneOptions,
-                                    helperText = "Optional",
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                                SuggestionPickerField(
-                                    label = "Website",
-                                    value = fields.website,
-                                    onValueChange = { value ->
-                                        viewModel.updateReviewFields { current -> current.copy(website = value) }
-                                    },
-                                    suggestions = websiteOptions,
-                                    helperText = "Optional",
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                                SuggestionPickerField(
-                                    label = "Address",
-                                    value = fields.address,
-                                    onValueChange = { value ->
-                                        viewModel.updateReviewFields { current -> current.copy(address = value) }
-                                    },
-                                    suggestions = addressOptions,
-                                    fromUnassigned = if (fields.address.isBlank()) unassignedForAddress else emptyList(),
-                                    onSelectFromUnassigned = { option ->
-                                        viewModel.assignUnassignedItem(
-                                            itemId = option.value,
-                                            targetField = ReviewAssignmentField.ADDRESS
-                                        )
-                                    },
-                                    helperText = "Optional",
-                                    modifier = Modifier.fillMaxWidth()
-                                )
+                                    }
+                                ) {
+                                    SuggestionPickerField(
+                                        label = "Address",
+                                        value = fields.address,
+                                        onValueChange = { value ->
+                                            viewModel.updateReviewFields { current -> current.copy(address = value) }
+                                        },
+                                        suggestions = addressOptions,
+                                        fromUnassigned = if (fields.address.isBlank()) unassignedForAddress else emptyList(),
+                                        onSelectFromUnassigned = { option ->
+                                            viewModel.assignUnassignedItem(
+                                                itemId = option.value,
+                                                targetField = ReviewAssignmentField.ADDRESS
+                                            )
+                                        },
+                                        helperText = "Optional",
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
                             }
                         }
 
@@ -340,18 +420,26 @@ fun ReviewScreen(navController: NavController, viewModel: MainViewModel) {
                             onAssignClick = { itemId -> assigningUnassignedItemId = itemId }
                         )
 
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(AppDimens.sm),
-                            modifier = Modifier.fillMaxWidth()
+                        BottomActionBar(
+                            supportingContent = {
+                                if (scanState.isCheckingDuplicates) {
+                                    StatusPill(
+                                        label = "Checking duplicates...",
+                                        tone = StatusPillTone.Brand
+                                    )
+                                }
+                            },
+                            secondaryAction = {
+                                SecondaryButton(
+                                    text = "Rescan",
+                                    onClick = {
+                                        viewModel.setAllowIncompleteCoreSave(false)
+                                        navController.popBackStack()
+                                    },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
                         ) {
-                            SecondaryButton(
-                                text = "Rescan",
-                                onClick = {
-                                    viewModel.setAllowIncompleteCoreSave(false)
-                                    navController.popBackStack()
-                                },
-                                modifier = Modifier.weight(1f)
-                            )
                             PrimaryButton(
                                 text = "Continue",
                                 onClick = {
@@ -364,18 +452,10 @@ fun ReviewScreen(navController: NavController, viewModel: MainViewModel) {
                                     viewModel.checkForDuplicates()
                                     pendingContinue = true
                                 },
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.fillMaxWidth(),
                                 icon = Icons.Filled.ArrowForward,
                                 enabled = !scanState.isCheckingDuplicates
                             )
-                        }
-
-                        AnimatedVisibility(
-                            visible = scanState.isCheckingDuplicates,
-                            enter = fadeIn(),
-                            exit = fadeOut()
-                        ) {
-                            LoadingState(message = "Checking for duplicates...", modifier = Modifier.fillMaxWidth())
                         }
                     }
                 }

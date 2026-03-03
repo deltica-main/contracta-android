@@ -2,10 +2,10 @@ package com.example.businesscardscanner.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import com.example.businesscardscanner.ui.theme.AppTheme
 
 @Composable
 fun AppBackground(
@@ -14,9 +14,9 @@ fun AppBackground(
 ) {
     val brush = Brush.verticalGradient(
         colors = listOf(
-            MaterialTheme.colorScheme.background,
-            MaterialTheme.colorScheme.surface.copy(alpha = 0.98f),
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.24f)
+            AppTheme.colors.background,
+            AppTheme.colors.surface.copy(alpha = 0.98f),
+            AppTheme.colors.primarySoft.copy(alpha = 0.72f)
         )
     )
     Box(modifier = modifier.background(brush)) {

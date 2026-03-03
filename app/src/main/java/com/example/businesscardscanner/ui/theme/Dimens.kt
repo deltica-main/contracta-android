@@ -3,12 +3,12 @@ package com.example.businesscardscanner.ui.theme
 import androidx.compose.ui.unit.dp
 
 object AppDimens {
-    val space4 = 4.dp
-    val space8 = 8.dp
-    val space12 = 12.dp
-    val space16 = 16.dp
-    val space24 = 24.dp
-    val space32 = 32.dp
+    val space4 = DefaultSpacingTokens.xs
+    val space8 = DefaultSpacingTokens.sm
+    val space12 = DefaultSpacingTokens.md
+    val space16 = DefaultSpacingTokens.lg
+    val space24 = DefaultSpacingTokens.xl
+    val space32 = DefaultSpacingTokens.xl + DefaultSpacingTokens.sm
 
     val xs = space4
     val sm = space8
@@ -17,15 +17,27 @@ object AppDimens {
     val xl = space24
     val xxl = space32
 
-    val radiusSm = 8.dp
-    val radiusMd = 12.dp
-    val cardRadius = radiusMd
+    val radiusSm = DefaultRadiusTokens.small
+    val radiusMd = DefaultRadiusTokens.medium
+    val radiusLg = DefaultRadiusTokens.large
+    val cardRadius = radiusLg
     val fieldRadius = radiusMd
-    val buttonRadius = radiusSm
-    val chipRadius = radiusSm
+    val buttonRadius = DefaultRadiusTokens.full
+    val chipRadius = DefaultRadiusTokens.full
+    val pillRadius = DefaultRadiusTokens.full
 
-    val touchTargetMin = 48.dp
+    val divider = 1.dp
+    val outline = 2.dp
+    val touchTargetMin = 52.dp
     val touchTargetCompact = 48.dp
     val iconButtonSize = 48.dp
-    val buttonHeight = 48.dp
+    val iconSizeSm = 18.dp
+    val iconSizeMd = 20.dp
+    val buttonMinWidth = 112.dp
+    val buttonHeight = 52.dp
+    val avatarSize = 56.dp
+    val cardElevation = DefaultElevationTokens.medium
+    val floatingElevation = DefaultElevationTokens.floating
+    val subtleElevation = DefaultElevationTokens.subtle
+    const val businessCardAspectRatio = 1.75f
 }

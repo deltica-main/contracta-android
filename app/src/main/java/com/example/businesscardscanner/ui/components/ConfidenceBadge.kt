@@ -1,9 +1,5 @@
-﻿package com.example.businesscardscanner.ui.components
+package com.example.businesscardscanner.ui.components
 
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.example.businesscardscanner.ui.viewmodel.ConfidenceLevel
@@ -13,19 +9,15 @@ fun ConfidenceBadge(
     level: ConfidenceLevel,
     modifier: Modifier = Modifier
 ) {
-    val (label, color) = when (level) {
-        ConfidenceLevel.HIGH -> "High" to MaterialTheme.colorScheme.tertiary
-        ConfidenceLevel.MEDIUM -> "Medium" to MaterialTheme.colorScheme.secondary
-        ConfidenceLevel.LOW -> "Low" to MaterialTheme.colorScheme.outline
+    val (label, tone) = when (level) {
+        ConfidenceLevel.HIGH -> "Looks Good" to StatusPillTone.Success
+        ConfidenceLevel.MEDIUM -> "Needs Review" to StatusPillTone.Warning
+        ConfidenceLevel.LOW -> "Needs Review" to StatusPillTone.Warning
     }
-    AssistChip(
-        onClick = {},
-        enabled = false,
-        label = { Text(label) },
+    StatusPill(
+        label = label,
+        tone = tone,
         modifier = modifier,
-        colors = AssistChipDefaults.assistChipColors(
-            containerColor = color.copy(alpha = 0.15f),
-            labelColor = color
-        )
+        showDot = true
     )
 }

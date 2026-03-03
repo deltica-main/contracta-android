@@ -53,7 +53,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.businesscardscanner.data.integration.ContactsSyncResult
 import com.example.businesscardscanner.data.integration.ContactsSyncResultType
@@ -71,12 +70,15 @@ import com.example.businesscardscanner.ui.components.AppTextField
 import com.example.businesscardscanner.ui.components.AppTopBar
 import com.example.businesscardscanner.ui.components.BusinessCardAsyncImage
 import com.example.businesscardscanner.ui.components.DangerButton
+import com.example.businesscardscanner.ui.components.EditableFieldRow
 import com.example.businesscardscanner.ui.components.EmptyState
 import com.example.businesscardscanner.ui.components.InfoChip
 import com.example.businesscardscanner.ui.components.PrimaryButton
 import com.example.businesscardscanner.ui.components.SectionHeader
 import com.example.businesscardscanner.ui.components.SecondaryButton
 import com.example.businesscardscanner.ui.components.IndustrySelector
+import com.example.businesscardscanner.ui.components.StatusPill
+import com.example.businesscardscanner.ui.components.StatusPillTone
 import com.example.businesscardscanner.ui.navigation.Screen
 import com.example.businesscardscanner.ui.theme.AppDimens
 import com.example.businesscardscanner.ui.viewmodel.MainViewModel
@@ -239,7 +241,30 @@ fun ContactDetailScreen(navController: NavController, viewModel: MainViewModel, 
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            contact.industryDisplayLabel()?.let { InfoChip(label = it) }
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(AppDimens.sm),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                contact.industryDisplayLabel()?.let {
+                                    InfoChip(label = it)
+                                }
+                                if (!contact.phoneExportStatus.isNullOrBlank()) {
+                                    StatusPill(
+                                        label = "Phone ${formatPhoneExportStatus(contact.phoneExportStatus)}",
+                                        tone = if (
+                                            contact.phoneExportStatus.equals(
+                                                ContactsSyncResultType.Failed.name,
+                                                ignoreCase = true
+                                            )
+                                        ) {
+                                            StatusPillTone.Error
+                                        } else {
+                                            StatusPillTone.Brand
+                                        },
+                                        showDot = false
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -247,7 +272,10 @@ fun ContactDetailScreen(navController: NavController, viewModel: MainViewModel, 
                 item {
                     val contact = detailState.contact
                     if (contact != null) {
-                        SectionHeader(title = "Quick actions")
+                        SectionHeader(
+                            title = "Quick actions",
+                            supportingText = "Reach out fast or save to your phone contacts."
+                        )
                         AppCard(modifier = Modifier.fillMaxWidth()) {
                             val quickActions = mutableListOf<QuickActionAction>()
                             contact.phone?.let { phone ->
@@ -392,7 +420,10 @@ fun ContactDetailScreen(navController: NavController, viewModel: MainViewModel, 
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(AppDimens.sm)
                                     ) {
-                                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(AppDimens.iconSizeSm),
+                                            strokeWidth = AppDimens.divider + AppDimens.divider
+                                        )
                                         Text(
                                             text = "Adding to phone contacts...",
                                             style = MaterialTheme.typography.bodySmall,
@@ -426,14 +457,13 @@ fun ContactDetailScreen(navController: NavController, viewModel: MainViewModel, 
                                     )
                                 }
                                 actionFeedback?.let { feedback ->
-                                    Text(
-                                        text = feedback,
-                                        color = if (actionFeedbackIsError) {
-                                            MaterialTheme.colorScheme.error
+                                    StatusPill(
+                                        label = feedback,
+                                        tone = if (actionFeedbackIsError) {
+                                            StatusPillTone.Error
                                         } else {
-                                            MaterialTheme.colorScheme.onSurfaceVariant
-                                        },
-                                        style = MaterialTheme.typography.bodySmall
+                                            StatusPillTone.Brand
+                                        }
                                     )
                                 }
                             }
@@ -442,90 +472,107 @@ fun ContactDetailScreen(navController: NavController, viewModel: MainViewModel, 
                 }
 
                 item {
-                    SectionHeader(title = "Edit details")
+                    SectionHeader(
+                        title = "Edit details",
+                        supportingText = "Update saved contact details without changing scan data."
+                    )
                     AppCard(modifier = Modifier.fillMaxWidth()) {
                         Column(verticalArrangement = Arrangement.spacedBy(AppDimens.md)) {
-                            AppTextField(
-                                value = detailState.editFields.name,
-                                onValueChange = { value ->
-                                    viewModel.updateContactEditFields { it.copy(name = value) }
-                                },
-                                label = "Name",
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            AppTextField(
-                                value = detailState.editFields.title,
-                                onValueChange = { value ->
-                                    viewModel.updateContactEditFields { it.copy(title = value) }
-                                },
-                                label = "Title",
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            AppTextField(
-                                value = detailState.editFields.company,
-                                onValueChange = { value ->
-                                    viewModel.updateContactEditFields { it.copy(company = value) }
-                                },
-                                label = "Company",
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            IndustrySelector(
-                                value = detailState.editFields.industry,
-                                customValue = detailState.editFields.industryCustom,
-                                onValueChange = { value ->
-                                    viewModel.updateContactEditFields {
-                                        it.copy(
-                                            industry = value,
-                                            industryCustom = if (value.equals("Other", ignoreCase = true)) {
-                                                it.industryCustom
-                                            } else {
-                                                ""
-                                            },
-                                            industrySource = IndustrySource.normalizeForDraft(
+                            EditableFieldRow {
+                                AppTextField(
+                                    value = detailState.editFields.name,
+                                    onValueChange = { value ->
+                                        viewModel.updateContactEditFields { it.copy(name = value) }
+                                    },
+                                    label = "Name",
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                            EditableFieldRow {
+                                AppTextField(
+                                    value = detailState.editFields.title,
+                                    onValueChange = { value ->
+                                        viewModel.updateContactEditFields { it.copy(title = value) }
+                                    },
+                                    label = "Title",
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                            EditableFieldRow {
+                                AppTextField(
+                                    value = detailState.editFields.company,
+                                    onValueChange = { value ->
+                                        viewModel.updateContactEditFields { it.copy(company = value) }
+                                    },
+                                    label = "Company",
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                            EditableFieldRow {
+                                IndustrySelector(
+                                    value = detailState.editFields.industry,
+                                    customValue = detailState.editFields.industryCustom,
+                                    onValueChange = { value ->
+                                        viewModel.updateContactEditFields {
+                                            it.copy(
                                                 industry = value,
-                                                source = IndustrySource.USER_SELECTED
+                                                industryCustom = if (value.equals("Other", ignoreCase = true)) {
+                                                    it.industryCustom
+                                                } else {
+                                                    ""
+                                                },
+                                                industrySource = IndustrySource.normalizeForDraft(
+                                                    industry = value,
+                                                    source = IndustrySource.USER_SELECTED
+                                                )
                                             )
-                                        )
-                                    }
-                                },
-                                onCustomValueChange = { custom ->
-                                    viewModel.updateContactEditFields {
-                                        it.copy(
-                                            industryCustom = custom,
-                                            industrySource = IndustrySource.normalizeForDraft(
-                                                industry = it.industry,
-                                                source = IndustrySource.USER_SELECTED
+                                        }
+                                    },
+                                    onCustomValueChange = { custom ->
+                                        viewModel.updateContactEditFields {
+                                            it.copy(
+                                                industryCustom = custom,
+                                                industrySource = IndustrySource.normalizeForDraft(
+                                                    industry = it.industry,
+                                                    source = IndustrySource.USER_SELECTED
+                                                )
                                             )
-                                        )
-                                    }
-                                },
-                                options = IndustryCatalog.manualSelectionIndustries,
-                                label = "Industry"
-                            )
-                            AppTextField(
-                                value = detailState.editFields.email,
-                                onValueChange = { value ->
-                                    viewModel.updateContactEditFields { it.copy(email = value) }
-                                },
-                                label = "Email",
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            AppTextField(
-                                value = detailState.editFields.phone,
-                                onValueChange = { value ->
-                                    viewModel.updateContactEditFields { it.copy(phone = value) }
-                                },
-                                label = "Phone",
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            AppTextField(
-                                value = detailState.editFields.website,
-                                onValueChange = { value ->
-                                    viewModel.updateContactEditFields { it.copy(website = value) }
-                                },
-                                label = "Website",
-                                modifier = Modifier.fillMaxWidth()
-                            )
+                                        }
+                                    },
+                                    options = IndustryCatalog.manualSelectionIndustries,
+                                    label = "Industry"
+                                )
+                            }
+                            EditableFieldRow {
+                                AppTextField(
+                                    value = detailState.editFields.email,
+                                    onValueChange = { value ->
+                                        viewModel.updateContactEditFields { it.copy(email = value) }
+                                    },
+                                    label = "Email",
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                            EditableFieldRow {
+                                AppTextField(
+                                    value = detailState.editFields.phone,
+                                    onValueChange = { value ->
+                                        viewModel.updateContactEditFields { it.copy(phone = value) }
+                                    },
+                                    label = "Phone",
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                            EditableFieldRow {
+                                AppTextField(
+                                    value = detailState.editFields.website,
+                                    onValueChange = { value ->
+                                        viewModel.updateContactEditFields { it.copy(website = value) }
+                                    },
+                                    label = "Website",
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
                             PrimaryButton(
                                 text = if (detailState.isSaving) "Saving..." else "Save changes",
                                 onClick = { viewModel.saveContactEdits() },
@@ -549,6 +596,7 @@ fun ContactDetailScreen(navController: NavController, viewModel: MainViewModel, 
                 item {
                     SectionHeader(
                         title = "How you met",
+                        supportingText = "Keep a running history of conversations and notes.",
                         action = {
                             SecondaryButton(
                                 text = "Add",
@@ -571,18 +619,26 @@ fun ContactDetailScreen(navController: NavController, viewModel: MainViewModel, 
                 } else {
                     items(detailState.interactions) { interaction ->
                         AppCard(modifier = Modifier.fillMaxWidth()) {
-                            Column(verticalArrangement = Arrangement.spacedBy(AppDimens.sm - AppDimens.xs)) {
+                            Column(verticalArrangement = Arrangement.spacedBy(AppDimens.sm)) {
                                 val relative = DateUtils.getRelativeTimeSpanString(
                                     interaction.dateTime,
                                     System.currentTimeMillis(),
                                     DateUtils.MINUTE_IN_MILLIS
                                 )
-                                Text(text = relative.toString(), style = MaterialTheme.typography.labelMedium)
+                                StatusPill(
+                                    label = relative.toString(),
+                                    tone = StatusPillTone.Neutral,
+                                    showDot = false
+                                )
+                                interaction.relationshipType?.let {
+                                    StatusPill(
+                                        label = it,
+                                        tone = StatusPillTone.Brand,
+                                        showDot = false
+                                    )
+                                }
                                 interaction.meetingLocationName?.let {
                                     Text(text = "Place: $it", style = MaterialTheme.typography.bodySmall)
-                                }
-                                interaction.relationshipType?.let {
-                                    Text(text = "Connection: $it", style = MaterialTheme.typography.bodySmall)
                                 }
                                 interaction.notes?.let {
                                     Text(text = it, style = MaterialTheme.typography.bodySmall)

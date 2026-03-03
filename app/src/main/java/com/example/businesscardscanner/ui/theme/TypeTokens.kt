@@ -1,26 +1,28 @@
 package com.example.businesscardscanner.ui.theme
 
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 
 object AppTypeTokens {
+    val display: TextStyle
+        @Composable get() = AppTheme.typography.display
+
     val screenTitle: TextStyle
-        @Composable get() = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium)
+        @Composable get() = AppTheme.typography.title
 
     val sectionTitle: TextStyle
-        @Composable get() = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium)
+        @Composable get() = AppTheme.typography.subtitle
 
     val fieldLabel: TextStyle
-        @Composable get() = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium)
+        @Composable get() = AppTheme.typography.caption.copy(fontWeight = FontWeight.Bold)
 
     val body: TextStyle
-        @Composable get() = MaterialTheme.typography.bodyMedium
+        @Composable get() = AppTheme.typography.body
 
     val caption: TextStyle
-        @Composable get() = MaterialTheme.typography.bodySmall
+        @Composable get() = AppTheme.typography.caption
 
     val buttonText: TextStyle
-        @Composable get() = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium)
+        @Composable get() = AppTheme.typography.button
 }

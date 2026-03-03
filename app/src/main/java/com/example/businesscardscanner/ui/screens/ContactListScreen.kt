@@ -53,7 +53,6 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.businesscardscanner.data.integration.ContactsBulkExportSummary
@@ -61,16 +60,22 @@ import com.example.businesscardscanner.domain.logic.IndustryCatalog
 import com.example.businesscardscanner.domain.model.Contact
 import com.example.businesscardscanner.ui.components.AnchoredDropdownField
 import com.example.businesscardscanner.ui.components.AppBackground
+import com.example.businesscardscanner.ui.components.AppCard
 import com.example.businesscardscanner.ui.components.AppAlertDialog
 import com.example.businesscardscanner.ui.components.AppModalBottomSheet
 import com.example.businesscardscanner.ui.components.AppTopBar
 import com.example.businesscardscanner.ui.components.EmptyState
+import com.example.businesscardscanner.ui.components.EmptyStateView
 import com.example.businesscardscanner.ui.components.LoadingState
 import com.example.businesscardscanner.ui.components.PrimaryButton
 import com.example.businesscardscanner.ui.components.SearchField
+import com.example.businesscardscanner.ui.components.SectionHeader
 import com.example.businesscardscanner.ui.components.SecondaryButton
+import com.example.businesscardscanner.ui.components.StatusPill
+import com.example.businesscardscanner.ui.components.StatusPillTone
 import com.example.businesscardscanner.ui.navigation.Screen
 import com.example.businesscardscanner.ui.theme.AppDimens
+import com.example.businesscardscanner.ui.theme.AppTheme
 import com.example.businesscardscanner.ui.viewmodel.ContactMatch
 import com.example.businesscardscanner.ui.viewmodel.MainViewModel
 import com.example.businesscardscanner.ui.viewmodel.SortOption
@@ -202,36 +207,47 @@ fun ContactListScreen(
                     .padding(AppDimens.lg),
                 verticalArrangement = Arrangement.spacedBy(AppDimens.sm)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(AppDimens.sm),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    SearchField(
-                        value = uiState.query,
-                        onValueChange = { viewModel.updateSearchQuery(it) },
-                        placeholder = "Search name, company, notes",
-                        modifier = Modifier.weight(1f)
-                    )
-                    IconButton(
-                        onClick = { showFilterSheet = true },
-                        modifier = Modifier.size(AppDimens.iconButtonSize)
+                AppCard(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(AppDimens.sm),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Tune,
-                            contentDescription = "Open contact filters",
-                            tint = if (
-                                uiState.hasNotes ||
-                                uiState.industryFilter != null ||
-                                uiState.sortOption != SortOption.RECENT
-                            ) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            }
+                        SearchField(
+                            value = uiState.query,
+                            onValueChange = { viewModel.updateSearchQuery(it) },
+                            placeholder = "Search name, company, notes",
+                            modifier = Modifier.weight(1f)
                         )
+                        IconButton(
+                            onClick = { showFilterSheet = true },
+                            modifier = Modifier.size(AppDimens.iconButtonSize)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Tune,
+                                contentDescription = "Open contact filters",
+                                tint = if (
+                                    uiState.hasNotes ||
+                                    uiState.industryFilter != null ||
+                                    uiState.sortOption != SortOption.RECENT
+                                ) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                }
+                            )
+                        }
                     }
                 }
+
+                SectionHeader(
+                    title = "Directory",
+                    supportingText = if (uiState.results.isEmpty()) {
+                        "No saved contacts yet."
+                    } else {
+                        "Showing ${uiState.results.size} contact${if (uiState.results.size == 1) "" else "s"}"
+                    }
+                )
 
                 bulkMessage?.let { message ->
                     Text(
@@ -251,11 +267,13 @@ fun ContactListScreen(
 
                 if (!uiState.isLoading) {
                     if (uiState.results.isEmpty()) {
-                        EmptyState(
-                            title = "No contacts found",
-                            subtitle = "Try another search or scan a card.",
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                        AppCard(modifier = Modifier.fillMaxWidth()) {
+                            EmptyStateView(
+                                title = "No contacts found",
+                                subtitle = "Try another search or scan a card.",
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
                         PrimaryButton(
                             text = "Scan card",
                             onClick = { navController.navigate(Screen.Scan.createRoute()) },
@@ -263,21 +281,13 @@ fun ContactListScreen(
                         )
                     } else {
                         LazyColumn(
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(AppDimens.md)
                         ) {
-                            itemsIndexed(uiState.results, key = { _, item -> item.summary.contact.id }) { index, match ->
+                            itemsIndexed(uiState.results, key = { _, item -> item.summary.contact.id }) { _, match ->
                                 ContactRow(match = match, onClick = {
                                     navController.navigate(Screen.ContactDetail.createRoute(match.summary.contact.id))
                                 })
-                                if (index < uiState.results.lastIndex) {
-                                    Spacer(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = AppDimens.lg)
-                                            .height(1.dp)
-                                            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
-                                    )
-                                }
                             }
                         }
                     }
@@ -500,6 +510,7 @@ private fun ContactRow(match: ContactMatch, onClick: () -> Unit) {
     val summary = match.summary
     val tokens = match.matchedTokens
     val phoneExported = !summary.contact.phoneExportStatus.isNullOrBlank()
+    val highlightColor = AppTheme.colors.warning.copy(alpha = 0.18f)
     val relativeLabel = summary.lastInteractionTime?.let { lastInteraction ->
         DateUtils.getRelativeTimeSpanString(
             lastInteraction,
@@ -508,77 +519,93 @@ private fun ContactRow(match: ContactMatch, onClick: () -> Unit) {
         ).toString()
     }
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = AppDimens.lg, vertical = AppDimens.md),
-        horizontalArrangement = Arrangement.spacedBy(AppDimens.md),
-        verticalAlignment = Alignment.Top
+    AppCard(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick
     ) {
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(MaterialTheme.shapes.medium)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(AppDimens.md),
+            verticalAlignment = Alignment.Top
         ) {
-            if (summary.contact.imagePath != null) {
-                AsyncImage(
-                    model = File(summary.contact.imagePath),
-                    contentDescription = "Business card thumbnail",
-                    modifier = Modifier.fillMaxSize()
-                )
+            Box(
+                modifier = Modifier
+                    .size(AppDimens.avatarSize)
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                if (summary.contact.imagePath != null) {
+                    AsyncImage(
+                        model = File(summary.contact.imagePath),
+                        contentDescription = "Business card thumbnail",
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
-        }
 
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(AppDimens.xs)
-        ) {
-            Text(
-                text = highlightTokens(summary.contact.name ?: "Unknown", tokens),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Medium
-            )
-            summary.contact.company?.let {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(AppDimens.xs)
+            ) {
                 Text(
-                    text = highlightTokens(it, tokens),
-                    style = MaterialTheme.typography.bodyMedium
+                    text = highlightTokens(
+                        text = summary.contact.name ?: "Unknown",
+                        tokens = tokens,
+                        highlightColor = highlightColor
+                    ),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium
                 )
+                summary.contact.company?.let {
+                    Text(
+                        text = highlightTokens(
+                            text = it,
+                            tokens = tokens,
+                            highlightColor = highlightColor
+                        ),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+                summary.contact.title?.let {
+                    Text(
+                        text = highlightTokens(
+                            text = it,
+                            tokens = tokens,
+                            highlightColor = highlightColor
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
-            summary.contact.title?.let {
-                Text(
-                    text = highlightTokens(it, tokens),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
 
-        Column(
-            horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.spacedBy(AppDimens.xs)
-        ) {
-            if (!relativeLabel.isNullOrBlank()) {
-                Text(
-                    text = relativeLabel,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            if (phoneExported) {
-                Icon(
-                    imageVector = Icons.Rounded.ContactPhone,
-                    contentDescription = "Synced with phone contacts",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
-                    modifier = Modifier.size(16.dp)
-                )
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(AppDimens.sm)
+            ) {
+                if (phoneExported) {
+                    StatusPill(
+                        label = "Phone synced",
+                        tone = StatusPillTone.Brand,
+                        showDot = false
+                    )
+                }
+                if (!relativeLabel.isNullOrBlank()) {
+                    Text(
+                        text = relativeLabel,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }
 }
 
-private fun highlightTokens(text: String, tokens: List<String>): AnnotatedString {
+private fun highlightTokens(
+    text: String,
+    tokens: List<String>,
+    highlightColor: Color
+): AnnotatedString {
     if (tokens.isEmpty() || text.isBlank()) return AnnotatedString(text)
     val safeTokens = tokens.filter { it.isNotBlank() }.distinct()
     if (safeTokens.isEmpty()) return AnnotatedString(text)
@@ -593,7 +620,7 @@ private fun highlightTokens(text: String, tokens: List<String>): AnnotatedString
             }
             withStyle(
                 style = SpanStyle(
-                    background = Color(0x33FFD166),
+                    background = highlightColor,
                     color = Color.Unspecified,
                     fontWeight = FontWeight.SemiBold
                 )
