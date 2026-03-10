@@ -1,0 +1,50 @@
+package ca.deltica.contactra.ui.components
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import ca.deltica.contactra.ui.theme.AppDimens
+import ca.deltica.contactra.ui.theme.AppTypeTokens
+
+@Composable
+fun SectionHeader(
+    title: String,
+    modifier: Modifier = Modifier,
+    supportingText: String? = null,
+    action: (@Composable () -> Unit)? = null
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Top
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(AppDimens.xs)
+        ) {
+            Text(
+                text = title,
+                style = AppTypeTokens.sectionTitle,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            if (!supportingText.isNullOrBlank()) {
+                Text(
+                    text = supportingText,
+                    style = AppTypeTokens.caption,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        if (action != null) {
+            action()
+        }
+    }
+}

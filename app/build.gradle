@@ -8,12 +8,34 @@ plugins {
     id 'kotlin-kapt'
 }
 
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withInputStream { input ->
+        localProperties.load(input)
+    }
+}
+
+def releaseStoreFile = project.findProperty('CONTACTRA_KEYSTORE_FILE')
+        ?: localProperties.getProperty('CONTACTRA_KEYSTORE_FILE')
+        ?: System.getenv('CONTACTRA_KEYSTORE_FILE')
+def releaseKeyAlias = project.findProperty('CONTACTRA_KEY_ALIAS')
+        ?: localProperties.getProperty('CONTACTRA_KEY_ALIAS')
+        ?: System.getenv('CONTACTRA_KEY_ALIAS')
+def releaseStorePassword = project.findProperty('CONTACTRA_STORE_PASSWORD')
+        ?: localProperties.getProperty('CONTACTRA_STORE_PASSWORD')
+        ?: System.getenv('CONTACTRA_STORE_PASSWORD')
+def releaseKeyPassword = project.findProperty('CONTACTRA_KEY_PASSWORD')
+        ?: localProperties.getProperty('CONTACTRA_KEY_PASSWORD')
+        ?: System.getenv('CONTACTRA_KEY_PASSWORD')
+def hasReleaseSigning = releaseStoreFile && releaseKeyAlias && releaseStorePassword && releaseKeyPassword
+
 android {
-    namespace 'com.example.businesscardscanner'
+    namespace 'ca.deltica.contactra'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.example.businesscardscanner"
+        applicationId "ca.deltica.contactra"
         minSdk 24
         targetSdk 34
         versionCode 1
@@ -30,6 +52,20 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (hasReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            release {
+                storeFile file(releaseStoreFile)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
         }
     }
 
