@@ -104,7 +104,8 @@ private enum class CameraUnavailableType {
 fun ScanScreen(
     navController: NavController,
     viewModel: MainViewModel,
-    launchGallery: Boolean
+    launchGallery: Boolean,
+    requestCameraPermissionOnLaunch: Boolean = true
 ) {
     val scanState by viewModel.scanUiState.collectAsState()
     val context = LocalContext.current
@@ -826,7 +827,7 @@ fun ScanScreen(
     }
 
     LaunchedEffect(Unit) {
-        if (!hasCameraPermission) {
+        if (requestCameraPermissionOnLaunch && !hasCameraPermission) {
             permissionLauncher.launch(Manifest.permission.CAMERA)
         }
     }
