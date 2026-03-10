@@ -42,7 +42,7 @@ import com.example.businesscardscanner.ui.components.SectionHeader
 import com.example.businesscardscanner.ui.theme.AppDimens
 import com.example.businesscardscanner.ui.viewmodel.MainViewModel
 
-private const val SUPPORT_EMAIL_ADDRESS = "melsawi@deltica.ca"
+private const val SUPPORT_EMAIL_ADDRESS = "support@deltica.ca"
 
 @Composable
 fun SupportScreen(
