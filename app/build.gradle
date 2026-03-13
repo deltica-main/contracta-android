@@ -6,6 +6,7 @@ plugins {
     // explicitly for annotation processing.
     id 'org.jetbrains.kotlin.android'
     id 'kotlin-kapt'
+    id 'org.jetbrains.kotlin.plugin.compose'
 }
 
 def localProperties = new Properties()
@@ -39,7 +40,7 @@ android {
         minSdk 24
         targetSdk 36
         versionCode 4
-        versionName "1.0.3"
+        versionName "1.0.4"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         // Enable Jetpack Compose
@@ -91,10 +92,6 @@ android {
     buildFeatures {
         buildConfig true
         compose true
-    }
-    composeOptions {
-        // Updated to 1.5.14 to be compatible with Kotlin 1.9.24
-        kotlinCompilerExtensionVersion '1.5.14'
     }
     packagingOptions {
         resources.excludes += '/META-INF/{AL2.0,LGPL2.1}'
