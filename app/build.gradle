@@ -1,9 +1,5 @@
 plugins {
     id 'com.android.application'
-    // Apply the Kotlin Android plugin.  Android Gradle plugin 8.3.0 still
-    // applies a compatible Kotlin Gradle plugin automatically, so you do not
-    // need to declare an explicit version here.  KAPT is still applied
-    // explicitly for annotation processing.
     id 'org.jetbrains.kotlin.android'
     id 'kotlin-kapt'
     id 'org.jetbrains.kotlin.plugin.compose'
@@ -39,8 +35,8 @@ android {
         applicationId "ca.deltica.contactra"
         minSdk 24
         targetSdk 36
-        versionCode 4
-        versionName "1.0.4"
+        versionCode 5
+        versionName "1.0.5"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         // Enable Jetpack Compose
@@ -75,19 +71,11 @@ android {
     }
 
     compileOptions {
-        // Compile your source code with Java 21.  Although Android Gradle plugin 8.3.0
-        // requires a JDK 17 runtime, it can compile and desugar newer language
-        // features when the source and target compatibility are set to Java 21.
-        // Running the build with Gradle 8.5 allows Gradle to run on JDK 21
-        //【642599680304377†L58-L65】.  Note that using Java 21 language features
-        // requires devices running Android 14 (API 34) or that desugaring
-        // handles the new APIs.
-        sourceCompatibility JavaVersion.VERSION_21
-        targetCompatibility JavaVersion.VERSION_21
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
     kotlinOptions {
-        // Set the Kotlin JVM target to 21 to match the Java toolchain.
-        jvmTarget = '21'
+        jvmTarget = '17'
     }
     buildFeatures {
         buildConfig true
@@ -122,9 +110,9 @@ dependencies {
     implementation 'com.google.mlkit:text-recognition:16.0.0'
 
     // Room
-    implementation 'androidx.room:room-runtime:2.6.1'
-    kapt 'androidx.room:room-compiler:2.6.1'
-    implementation 'androidx.room:room-ktx:2.6.1'
+    implementation 'androidx.room:room-runtime:2.8.4'
+    kapt 'androidx.room:room-compiler:2.8.4'
+    implementation 'androidx.room:room-ktx:2.8.4'
 
     // Location services
     implementation 'com.google.android.gms:play-services-location:21.0.1'
@@ -138,8 +126,8 @@ dependencies {
     // Coil for image loading (aligns with Compose 1.5.x runtime to avoid NoClassDefFoundError)
     implementation 'io.coil-kt:coil-compose:2.4.0'
 
-    // Logging
-    implementation 'androidx.compose.ui:ui-tooling:1.5.0'
+    // Compose tooling should not ship in release artifacts.
+    debugImplementation 'androidx.compose.ui:ui-tooling:1.5.0'
     implementation 'androidx.compose.ui:ui-util:1.5.0'
 
     // Unit tests
@@ -151,7 +139,7 @@ dependencies {
     androidTestImplementation 'androidx.test:core:1.5.0'
     androidTestImplementation 'androidx.test:runner:1.5.2'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
-    androidTestImplementation 'androidx.room:room-testing:2.6.1'
+    androidTestImplementation 'androidx.room:room-testing:2.8.4'
     androidTestImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3'
     androidTestImplementation 'androidx.compose.ui:ui-test-junit4:1.5.0'
     debugImplementation 'androidx.compose.ui:ui-test-manifest:1.5.0'
