@@ -116,6 +116,15 @@ fun ReviewScreen(navController: NavController, viewModel: MainViewModel) {
     val unassignedForCompany = remember(unassignedItems) {
         unassignedItems.toUnassignedSuggestionOptions(ReviewAssignmentField.COMPANY)
     }
+    val unassignedForEmail = remember(unassignedItems) {
+        unassignedItems.toUnassignedSuggestionOptions(ReviewAssignmentField.EMAIL)
+    }
+    val unassignedForPhone = remember(unassignedItems) {
+        unassignedItems.toUnassignedSuggestionOptions(ReviewAssignmentField.PHONE)
+    }
+    val unassignedForWebsite = remember(unassignedItems) {
+        unassignedItems.toUnassignedSuggestionOptions(ReviewAssignmentField.WEBSITE)
+    }
     val unassignedForAddress = remember(unassignedItems) {
         unassignedItems.toUnassignedSuggestionOptions(ReviewAssignmentField.ADDRESS)
     }
@@ -268,6 +277,7 @@ fun ReviewScreen(navController: NavController, viewModel: MainViewModel) {
                                                 targetField = ReviewAssignmentField.NAME
                                             )
                                         },
+                                        openPickerOnEmptyFieldTap = fields.name.isBlank() && unassignedForName.isNotEmpty(),
                                         helperText = "Need name or company",
                                         isError = missingNameAndCompany,
                                         modifier = Modifier.fillMaxWidth()
@@ -292,6 +302,7 @@ fun ReviewScreen(navController: NavController, viewModel: MainViewModel) {
                                                 targetField = ReviewAssignmentField.TITLE
                                             )
                                         },
+                                        openPickerOnEmptyFieldTap = fields.title.isBlank() && unassignedForTitle.isNotEmpty(),
                                         helperText = "Optional",
                                         modifier = Modifier.fillMaxWidth()
                                     )
@@ -315,6 +326,7 @@ fun ReviewScreen(navController: NavController, viewModel: MainViewModel) {
                                                 targetField = ReviewAssignmentField.COMPANY
                                             )
                                         },
+                                        openPickerOnEmptyFieldTap = fields.company.isBlank() && unassignedForCompany.isNotEmpty(),
                                         helperText = "Need name or company",
                                         isError = missingNameAndCompany,
                                         modifier = Modifier.fillMaxWidth()
@@ -341,6 +353,14 @@ fun ReviewScreen(navController: NavController, viewModel: MainViewModel) {
                                             viewModel.updateReviewFields { current -> current.copy(email = value) }
                                         },
                                         suggestions = emailOptions,
+                                        fromUnassigned = if (fields.email.isBlank()) unassignedForEmail else emptyList(),
+                                        onSelectFromUnassigned = { option ->
+                                            viewModel.assignUnassignedItem(
+                                                itemId = option.value,
+                                                targetField = ReviewAssignmentField.EMAIL
+                                            )
+                                        },
+                                        openPickerOnEmptyFieldTap = fields.email.isBlank() && unassignedForEmail.isNotEmpty(),
                                         helperText = "Optional",
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                                         modifier = Modifier.fillMaxWidth()
@@ -358,6 +378,14 @@ fun ReviewScreen(navController: NavController, viewModel: MainViewModel) {
                                             viewModel.updateReviewFields { current -> current.copy(phone = value) }
                                         },
                                         suggestions = phoneOptions,
+                                        fromUnassigned = if (fields.phone.isBlank()) unassignedForPhone else emptyList(),
+                                        onSelectFromUnassigned = { option ->
+                                            viewModel.assignUnassignedItem(
+                                                itemId = option.value,
+                                                targetField = ReviewAssignmentField.PHONE
+                                            )
+                                        },
+                                        openPickerOnEmptyFieldTap = fields.phone.isBlank() && unassignedForPhone.isNotEmpty(),
                                         helperText = "Optional",
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                                         modifier = Modifier.fillMaxWidth()
@@ -375,6 +403,14 @@ fun ReviewScreen(navController: NavController, viewModel: MainViewModel) {
                                             viewModel.updateReviewFields { current -> current.copy(website = value) }
                                         },
                                         suggestions = websiteOptions,
+                                        fromUnassigned = if (fields.website.isBlank()) unassignedForWebsite else emptyList(),
+                                        onSelectFromUnassigned = { option ->
+                                            viewModel.assignUnassignedItem(
+                                                itemId = option.value,
+                                                targetField = ReviewAssignmentField.WEBSITE
+                                            )
+                                        },
+                                        openPickerOnEmptyFieldTap = fields.website.isBlank() && unassignedForWebsite.isNotEmpty(),
                                         helperText = "Optional",
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                                         modifier = Modifier.fillMaxWidth()
@@ -406,6 +442,7 @@ fun ReviewScreen(navController: NavController, viewModel: MainViewModel) {
                                                 targetField = ReviewAssignmentField.ADDRESS
                                             )
                                         },
+                                        openPickerOnEmptyFieldTap = fields.address.isBlank() && unassignedForAddress.isNotEmpty(),
                                         helperText = "Optional",
                                         modifier = Modifier.fillMaxWidth()
                                     )
@@ -929,7 +966,7 @@ private fun duplicateMatchCaption(reasons: List<String>): String? {
     }
 }
 
-private fun List<UnassignedOcrItem>.toUnassignedSuggestionOptions(
+internal fun List<UnassignedOcrItem>.toUnassignedSuggestionOptions(
     field: ReviewAssignmentField
 ): List<SuggestionOption> {
     return this
@@ -946,18 +983,48 @@ private fun List<UnassignedOcrItem>.toUnassignedSuggestionOptions(
         .toList()
 }
 
-private fun UnassignedOcrItem.isRelevantFor(field: ReviewAssignmentField): Boolean {
+private val UNASSIGNED_EMAIL_PATTERN =
+    Regex("\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b")
+private val UNASSIGNED_PHONE_PATTERN = Regex("(?<!\\d)(?:\\+?\\d[\\d\\s().-]{6,}\\d)")
+private val UNASSIGNED_WEBSITE_PATTERN =
+    Regex("\\b(?:https?://)?(?:www\\.)?(?:[a-z0-9-]+\\.)+[a-z]{2,}(?:/[^\\s]*)?\\b", RegexOption.IGNORE_CASE)
+
+internal fun UnassignedOcrItem.isRelevantFor(field: ReviewAssignmentField): Boolean {
     return when (field) {
         ReviewAssignmentField.TITLE -> kind == UnassignedItemKind.TITLE_LIKE || kind == UnassignedItemKind.OTHER
         ReviewAssignmentField.COMPANY -> kind == UnassignedItemKind.COMPANY_LIKE || kind == UnassignedItemKind.OTHER
         ReviewAssignmentField.ADDRESS -> kind == UnassignedItemKind.ADDRESS_LIKE || (isGrouped && lines.size > 1)
         ReviewAssignmentField.NAME -> kind == UnassignedItemKind.TITLE_LIKE || kind == UnassignedItemKind.OTHER
         ReviewAssignmentField.NOTES -> true
-        ReviewAssignmentField.EMAIL -> false
-        ReviewAssignmentField.PHONE -> false
-        ReviewAssignmentField.WEBSITE -> false
+        ReviewAssignmentField.EMAIL -> matchesUnassignedEmail()
+        ReviewAssignmentField.PHONE -> matchesUnassignedPhone()
+        ReviewAssignmentField.WEBSITE -> matchesUnassignedWebsite()
         ReviewAssignmentField.INDUSTRY -> kind == UnassignedItemKind.OTHER || kind == UnassignedItemKind.COMPANY_LIKE
     }
+}
+
+private fun UnassignedOcrItem.matchesUnassignedEmail(): Boolean {
+    return lines.any { line -> UNASSIGNED_EMAIL_PATTERN.containsMatchIn(line) } ||
+        UNASSIGNED_EMAIL_PATTERN.containsMatchIn(displayText)
+}
+
+private fun UnassignedOcrItem.matchesUnassignedPhone(): Boolean {
+    if (displayText.contains("@")) return false
+    val digits = displayText.filter { it.isDigit() }
+    if (digits.length < 7) return false
+    return lines.any { line -> UNASSIGNED_PHONE_PATTERN.containsMatchIn(line) } ||
+        UNASSIGNED_PHONE_PATTERN.containsMatchIn(displayText)
+}
+
+private fun UnassignedOcrItem.matchesUnassignedWebsite(): Boolean {
+    return lines.any { line -> looksLikeUnassignedWebsite(line) } ||
+        looksLikeUnassignedWebsite(displayText)
+}
+
+private fun looksLikeUnassignedWebsite(value: String): Boolean {
+    val normalized = value.trim()
+    if (normalized.isBlank() || normalized.contains("@")) return false
+    return UNASSIGNED_WEBSITE_PATTERN.containsMatchIn(normalized)
 }
 
 private fun List<String>.toSuggestionOptions(): List<SuggestionOption> {

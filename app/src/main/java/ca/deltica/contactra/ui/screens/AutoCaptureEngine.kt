@@ -229,10 +229,12 @@ internal object BusinessCardReadinessEvaluator {
         val hasDomain = domainPattern.containsMatchIn(normalizedText.lowercase())
         val hasPhone = phonePattern.containsMatchIn(normalizedText)
         val endpointSignalCount = listOf(hasEmail, hasDomain, hasPhone).count { it }
+        val hasDirectEndpointSignal = hasEmail || hasPhone
         val hasNameLikeLine = nonBlankLines.any { nameLinePattern.containsMatchIn(it) }
         val hasCompanyLikeLine = nonBlankLines.any { companyLinePattern.containsMatchIn(it) }
         val hasTitleLikeLine = nonBlankLines.any { titlePattern.containsMatchIn(it) }
         val identitySignalCount = listOf(hasNameLikeLine, hasCompanyLikeLine, hasTitleLikeLine).count { it }
+        val endpointSignalStrongEnough = hasDirectEndpointSignal || (hasDomain && identitySignalCount >= 2)
 
         val endpointScore = (endpointSignalCount / 2.0).coerceIn(0.0, 1.0)
         val identityScore = (identitySignalCount / 2.0).coerceIn(0.0, 1.0)
@@ -254,18 +256,19 @@ internal object BusinessCardReadinessEvaluator {
                 (textEvidenceScore * 0.40) +
                 (layoutScore * 0.20)
 
-        val ready = endpointSignalCount >= 1 &&
+        val ready = endpointSignalStrongEnough &&
             identitySignalCount >= 1 &&
-            cardRegionScore >= 0.55 &&
-            layoutScore >= 0.45 &&
-            combinedScore >= 0.70
+            cardRegionScore >= 0.60 &&
+            layoutScore >= 0.52 &&
+            combinedScore >= 0.76
 
         val reason = when {
             endpointSignalCount < 1 -> "ocr_contact_signal_missing"
+            !endpointSignalStrongEnough -> "ocr_contact_signal_weak"
             identitySignalCount < 1 -> "ocr_identity_signal_missing"
-            cardRegionScore < 0.55 -> "card_region_weak"
-            layoutScore < 0.45 -> "card_layout_inconsistent"
-            combinedScore < 0.70 -> "ocr_score_low"
+            cardRegionScore < 0.60 -> "card_region_weak"
+            layoutScore < 0.52 -> "card_layout_inconsistent"
+            combinedScore < 0.76 -> "ocr_score_low"
             else -> "ocr_ready"
         }
 
@@ -332,10 +335,10 @@ internal object BusinessCardReadinessEvaluator {
             .average()
         val leftStdNorm = (kotlin.math.sqrt(leftVariance) / frameWidth.toDouble()).coerceAtLeast(0.0)
 
-        val aspectScore = scoreWithinRange(aspectRatio, minValue = 1.1, maxValue = 6.0)
-        val widthScore = scoreWithinRange(widthRatio, minValue = 0.28, maxValue = 0.95)
-        val heightScore = scoreWithinRange(heightRatio, minValue = 0.16, maxValue = 0.80)
-        val alignmentScore = (1.0 - (leftStdNorm / 0.12)).coerceIn(0.0, 1.0)
+        val aspectScore = scoreWithinRange(aspectRatio, minValue = 1.25, maxValue = 4.5)
+        val widthScore = scoreWithinRange(widthRatio, minValue = 0.34, maxValue = 0.92)
+        val heightScore = scoreWithinRange(heightRatio, minValue = 0.20, maxValue = 0.66)
+        val alignmentScore = (1.0 - (leftStdNorm / 0.10)).coerceIn(0.0, 1.0)
 
         return (aspectScore * 0.30) +
             (widthScore * 0.25) +

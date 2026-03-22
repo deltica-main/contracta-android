@@ -89,4 +89,23 @@ class ReviewAssignmentSemanticsTest {
 
         assertEquals("Manual Name", update.fields.name)
     }
+
+    @Test
+    fun repeatedStructuredAssignments_doNotAppendOrDuplicate() {
+        val first = applyReviewAssignmentUpdate(
+            fields = ReviewFields(email = "legacy@old.com"),
+            currentNotes = "",
+            targetField = ReviewAssignmentField.EMAIL,
+            incomingText = "alex@northpeak.com"
+        )
+
+        val second = applyReviewAssignmentUpdate(
+            fields = first.fields,
+            currentNotes = first.notes,
+            targetField = ReviewAssignmentField.EMAIL,
+            incomingText = "alex@northpeak.com"
+        )
+
+        assertEquals("alex@northpeak.com", second.fields.email)
+    }
 }

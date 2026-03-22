@@ -90,6 +90,33 @@ class BusinessCardReadinessEvaluatorTest {
         assertTrue(readiness.reason.startsWith("card_region"))
     }
 
+    @Test
+    fun domainOnlyWithoutStrongIdentityIsRejected() {
+        val readiness = BusinessCardReadinessEvaluator.evaluate(
+            input = BusinessCardEvidenceInput(
+                frameWidth = 420,
+                frameHeight = 260,
+                blockCount = 3,
+                lineCount = 4,
+                text = "North Peak\nnorthpeak.com\nToronto\nOntario",
+                lines = listOf(
+                    line("North Peak", 44f, 56f, 220f, 86f),
+                    line("northpeak.com", 44f, 94f, 210f, 122f),
+                    line("Toronto", 44f, 130f, 132f, 158f),
+                    line("Ontario", 44f, 166f, 132f, 192f)
+                ),
+                stageAEvaluation = stageEvaluation(
+                    centerEdge = 0.13,
+                    outerEdge = 0.05,
+                    framingOutcome = FramingOutcome.FRAMING_OK
+                )
+            )
+        )
+
+        assertFalse(readiness.ready)
+        assertTrue(readiness.reason.contains("signal", ignoreCase = true))
+    }
+
     private fun line(text: String, left: Float, top: Float, right: Float, bottom: Float): BusinessCardTextLine {
         return BusinessCardTextLine(text = text, left = left, top = top, right = right, bottom = bottom)
     }

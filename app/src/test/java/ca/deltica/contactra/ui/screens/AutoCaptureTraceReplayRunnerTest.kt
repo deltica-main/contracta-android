@@ -1,6 +1,5 @@
 package ca.deltica.contactra.ui.screens
 
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -10,22 +9,22 @@ class AutoCaptureTraceReplayRunnerTest {
     private val replayRunner = AutoCaptureTraceReplayRunner()
 
     @Test
-    fun tableSuccessCase_reachesCaptureUnderTwoSeconds() {
+    fun tableSuccessCase_doesNotCaptureOnBriefUnstableWindow() {
         val records = loadRecords("auto_capture_traces/table_success_case.jsonl")
         val report = replayRunner.replayRecords(records)
 
-        assertNotNull(report.timeToFirstCaptureMs)
-        assertTrue((report.timeToFirstCaptureMs ?: Long.MAX_VALUE) < 2_000L)
+        assertEquals(0, report.captureFiredCount)
+        assertEquals(null, report.timeToFirstCaptureMs)
         assertTrue(report.ocrAttemptedPercent > 0.0)
     }
 
     @Test
-    fun handheldHesitantCase_improvesWithNearReadyStrikes() {
+    fun handheldHesitantCase_blocksCaptureWhenStabilityIsInsufficient() {
         val records = loadRecords("auto_capture_traces/handheld_hesitant_case.jsonl")
         val report = replayRunner.replayRecords(records)
 
-        assertNotNull(report.timeToFirstCaptureMs)
-        assertTrue((report.timeToFirstCaptureMs ?: Long.MAX_VALUE) < 2_500L)
+        assertEquals(0, report.captureFiredCount)
+        assertEquals(null, report.timeToFirstCaptureMs)
         assertTrue(report.ocrAttemptedPercent > 0.0)
         assertTrue((report.blockedByStageAFailReasonPercent["sharpness_low_hard"] ?: 0.0) > 0.0)
     }

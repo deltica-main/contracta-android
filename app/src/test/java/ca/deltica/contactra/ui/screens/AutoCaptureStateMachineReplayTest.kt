@@ -25,7 +25,7 @@ class AutoCaptureStateMachineReplayTest {
         }
 
         assertNotNull(captureAt)
-        assertTrue(captureAt!! <= 500L)
+        assertTrue(captureAt!! <= 650L)
     }
 
     @Test
@@ -36,11 +36,13 @@ class AutoCaptureStateMachineReplayTest {
         val replay = listOf(
             0L to strictPass(),
             100L to strictPass(),
-            180L to relaxedOnly(),
-            260L to relaxedOnly(),
-            340L to relaxedOnly(),
-            420L to relaxedOnly(),
-            500L to relaxedOnly()
+            200L to strictPass(),
+            320L to relaxedOnly(),
+            460L to relaxedOnly(),
+            620L to relaxedOnly(),
+            780L to relaxedOnly(),
+            940L to relaxedOnly(),
+            1100L to relaxedOnly()
         )
 
         var ocrChecks = 0
@@ -88,7 +90,8 @@ class AutoCaptureStateMachineReplayTest {
         stateMachine.reset(nowMs = 0L)
 
         stateMachine.onStageA(nowMs = 0L, evaluation = strictPass())
-        val stable = stateMachine.onStageA(nowMs = 100L, evaluation = strictPass())
+        stateMachine.onStageA(nowMs = 100L, evaluation = strictPass())
+        val stable = stateMachine.onStageA(nowMs = 200L, evaluation = strictPass())
         assertTrue(stable.stageAStable)
 
         val withinGrace1 = stateMachine.onStageA(nowMs = 180L, evaluation = motionBlocked())
@@ -103,9 +106,9 @@ class AutoCaptureStateMachineReplayTest {
 
     private fun buildStateMachine(): AutoCaptureStateMachine {
         return AutoCaptureStateMachine(
-            stableFramesRequired = 2,
+            stableFramesRequired = 3,
             ocrStableFramesRequired = 1,
-            readyChecksRequired = 1,
+            readyChecksRequired = 2,
             ocrIntervalMs = 250L,
             fastOcrIntervalMs = 150L,
             minCaptureIntervalMs = 900L,
