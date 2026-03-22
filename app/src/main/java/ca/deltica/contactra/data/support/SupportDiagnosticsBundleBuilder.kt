@@ -15,13 +15,6 @@ data class SupportFeatureFlags(
     val websiteEnrichmentEnabled: Boolean
 )
 
-data class SupportAutoCaptureSummary(
-    val cycleCount: Int,
-    val captureCount: Int,
-    val readyPercent: Double,
-    val dominantBlockerReason: String?
-)
-
 data class SupportRedactedTokenShape(
     val lineIndex: Int,
     val charCount: Int,
@@ -43,7 +36,6 @@ data class SupportDiagnosticsInput(
     val lastScanId: String?,
     val lastParseRecordId: String?,
     val recentFailureReasons: List<String>,
-    val autoCaptureSummary: SupportAutoCaptureSummary?,
     val redactedScanDetails: SupportRedactedScanDetails?
 )
 
@@ -120,16 +112,6 @@ object SupportDiagnosticsBundleBuilder {
         lines += "  \"lastScanId\": ${quotedNullable(input.lastScanId)},"
         lines += "  \"lastParseRecordId\": ${quotedNullable(input.lastParseRecordId)},"
         lines += "  \"recentFailureReasons\": [${failureReasons.joinToString(",") { quoted(it) }}]"
-
-        input.autoCaptureSummary?.let { summary ->
-            lines += ","
-            lines += "  \"autoCaptureSummary\": {"
-            lines += "    \"cycleCount\": ${summary.cycleCount},"
-            lines += "    \"captureCount\": ${summary.captureCount},"
-            lines += "    \"readyPercent\": ${"%.2f".format(Locale.US, summary.readyPercent)},"
-            lines += "    \"dominantBlockerReason\": ${quotedNullable(summary.dominantBlockerReason)}"
-            lines += "  }"
-        }
 
         if (includeScanDetails) {
             input.redactedScanDetails?.let { details ->

@@ -62,17 +62,11 @@ class SupportDiagnosticsBundleBuilderTest {
                 websiteEnrichmentEnabled = true
             ),
             schemaVersion = 6,
-            parserVersion = "auto_capture_decision_v2",
+            parserVersion = "scan_diagnostics_v1",
             lastActionContext = "settings",
             lastScanId = "session_123",
             lastParseRecordId = "record_9",
             recentFailureReasons = listOf("OCR timeout"),
-            autoCaptureSummary = SupportAutoCaptureSummary(
-                cycleCount = 42,
-                captureCount = 3,
-                readyPercent = 78.5,
-                dominantBlockerReason = "motion"
-            ),
             redactedScanDetails = SupportRedactedScanDetails(
                 selectedFieldConfidence = mapOf("name" to 0.91, "company" to 0.74),
                 tokenShapes = listOf(

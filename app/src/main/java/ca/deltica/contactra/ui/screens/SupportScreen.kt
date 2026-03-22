@@ -214,8 +214,8 @@ private fun supportFaqItems(): List<SupportFaqItem> {
             answer = "Text recognition can vary by photo quality and card layout. The review screen lets you edit every field before saving."
         ),
         SupportFaqItem(
-            question = "Why did auto capture not trigger?",
-            answer = "Auto capture waits for a clear, readable frame. You can always tap the shutter manually when you are ready."
+            question = "How do I capture a card?",
+            answer = "Tap directly on the camera preview or use the Capture button when you are ready."
         ),
         SupportFaqItem(
             question = "How is my data stored?",
