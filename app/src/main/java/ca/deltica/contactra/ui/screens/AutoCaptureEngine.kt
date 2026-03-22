@@ -93,6 +93,278 @@ internal data class OcrReadiness(
     val reason: String
 )
 
+internal enum class AutoCaptureCountdownPhase {
+    IDLE,
+    HOLDING,
+    COUNTDOWN
+}
+
+internal data class AutoCaptureCountdownTick(
+    val phase: AutoCaptureCountdownPhase,
+    val shouldCapture: Boolean,
+    val holdRemainingMs: Long = 0L,
+    val countdownRemainingMs: Long = 0L
+)
+
+internal class AutoCaptureCountdownController(
+    private val stableHoldMs: Long,
+    private val countdownMs: Long
+) {
+    private var holdStartedAtMs: Long = Long.MIN_VALUE
+    private var countdownStartedAtMs: Long = Long.MIN_VALUE
+    private var triggerLatched = false
+
+    @Synchronized
+    fun reset() {
+        holdStartedAtMs = Long.MIN_VALUE
+        countdownStartedAtMs = Long.MIN_VALUE
+        triggerLatched = false
+    }
+
+    @Synchronized
+    fun onReadiness(nowMs: Long, ready: Boolean): AutoCaptureCountdownTick {
+        if (!ready) {
+            reset()
+            return AutoCaptureCountdownTick(
+                phase = AutoCaptureCountdownPhase.IDLE,
+                shouldCapture = false
+            )
+        }
+
+        if (holdStartedAtMs == Long.MIN_VALUE) {
+            holdStartedAtMs = nowMs
+        }
+
+        val holdElapsedMs = (nowMs - holdStartedAtMs).coerceAtLeast(0L)
+        if (holdElapsedMs < stableHoldMs) {
+            return AutoCaptureCountdownTick(
+                phase = AutoCaptureCountdownPhase.HOLDING,
+                shouldCapture = false,
+                holdRemainingMs = (stableHoldMs - holdElapsedMs).coerceAtLeast(0L)
+            )
+        }
+
+        if (countdownStartedAtMs == Long.MIN_VALUE) {
+            countdownStartedAtMs = nowMs
+        }
+
+        val countdownElapsedMs = (nowMs - countdownStartedAtMs).coerceAtLeast(0L)
+        val countdownRemainingMs = (countdownMs - countdownElapsedMs).coerceAtLeast(0L)
+        if (countdownRemainingMs > 0L) {
+            return AutoCaptureCountdownTick(
+                phase = AutoCaptureCountdownPhase.COUNTDOWN,
+                shouldCapture = false,
+                countdownRemainingMs = countdownRemainingMs
+            )
+        }
+
+        val shouldCapture = !triggerLatched
+        triggerLatched = true
+        return AutoCaptureCountdownTick(
+            phase = AutoCaptureCountdownPhase.COUNTDOWN,
+            shouldCapture = shouldCapture
+        )
+    }
+}
+
+internal data class BusinessCardTextLine(
+    val text: String,
+    val left: Float? = null,
+    val top: Float? = null,
+    val right: Float? = null,
+    val bottom: Float? = null
+)
+
+internal data class BusinessCardEvidenceInput(
+    val frameWidth: Int,
+    val frameHeight: Int,
+    val blockCount: Int,
+    val lineCount: Int,
+    val text: String,
+    val lines: List<BusinessCardTextLine>,
+    val stageAEvaluation: StageAEvaluation
+)
+
+internal data class BusinessCardReadiness(
+    val ready: Boolean,
+    val score: Double,
+    val reason: String
+)
+
+internal object BusinessCardReadinessEvaluator {
+    private val emailPattern = Regex("[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}")
+    private val domainPattern = Regex("\\b[a-z0-9-]+\\.(com|net|org|io|co|ai|biz|us|uk|de|fr|jp|ca)\\b")
+    private val phonePattern = Regex("(?<!\\d)(?:\\+?\\d[\\d\\s().-]{6,}\\d)")
+    private val nameLinePattern = Regex("\\b[A-Z][a-zA-Z]{1,}\\s+[A-Z][a-zA-Z]{1,}\\b")
+    private val companyLinePattern = Regex(
+        "\\b(inc|llc|ltd|corp|co\\.|company|technologies|technology|solutions|studio|group|partners)\\b",
+        RegexOption.IGNORE_CASE
+    )
+    private val titlePattern = Regex(
+        "\\b(manager|director|engineer|owner|founder|president|vp|sales|marketing|consultant|lead)\\b",
+        RegexOption.IGNORE_CASE
+    )
+
+    fun evaluate(input: BusinessCardEvidenceInput): BusinessCardReadiness {
+        if (input.frameWidth <= 0 || input.frameHeight <= 0) {
+            return BusinessCardReadiness(
+                ready = false,
+                score = 0.0,
+                reason = "ocr_invalid_frame"
+            )
+        }
+        if (input.blockCount < 2 || input.lineCount < 2) {
+            return BusinessCardReadiness(
+                ready = false,
+                score = 0.0,
+                reason = "ocr_blocks_low"
+            )
+        }
+
+        val normalizedText = input.text.trim()
+        val nonBlankLines = input.lines
+            .map { it.text.trim() }
+            .filter { it.isNotEmpty() }
+        val hasEmail = emailPattern.containsMatchIn(normalizedText)
+        val hasDomain = domainPattern.containsMatchIn(normalizedText.lowercase())
+        val hasPhone = phonePattern.containsMatchIn(normalizedText)
+        val endpointSignalCount = listOf(hasEmail, hasDomain, hasPhone).count { it }
+        val hasNameLikeLine = nonBlankLines.any { nameLinePattern.containsMatchIn(it) }
+        val hasCompanyLikeLine = nonBlankLines.any { companyLinePattern.containsMatchIn(it) }
+        val hasTitleLikeLine = nonBlankLines.any { titlePattern.containsMatchIn(it) }
+        val identitySignalCount = listOf(hasNameLikeLine, hasCompanyLikeLine, hasTitleLikeLine).count { it }
+
+        val endpointScore = (endpointSignalCount / 2.0).coerceIn(0.0, 1.0)
+        val identityScore = (identitySignalCount / 2.0).coerceIn(0.0, 1.0)
+        val lineScore = scoreWithinRange(input.lineCount.toDouble(), minValue = 3.0, maxValue = 11.0)
+        val textEvidenceScore =
+            (endpointScore * 0.45) +
+                (identityScore * 0.35) +
+                (lineScore * 0.20)
+
+        val cardRegionScore = evaluateCardRegionEvidence(input.stageAEvaluation)
+        val layoutScore = evaluateLayoutScore(
+            frameWidth = input.frameWidth,
+            frameHeight = input.frameHeight,
+            lines = input.lines
+        )
+
+        val combinedScore =
+            (cardRegionScore * 0.40) +
+                (textEvidenceScore * 0.40) +
+                (layoutScore * 0.20)
+
+        val ready = endpointSignalCount >= 1 &&
+            identitySignalCount >= 1 &&
+            cardRegionScore >= 0.55 &&
+            layoutScore >= 0.45 &&
+            combinedScore >= 0.70
+
+        val reason = when {
+            endpointSignalCount < 1 -> "ocr_contact_signal_missing"
+            identitySignalCount < 1 -> "ocr_identity_signal_missing"
+            cardRegionScore < 0.55 -> "card_region_weak"
+            layoutScore < 0.45 -> "card_layout_inconsistent"
+            combinedScore < 0.70 -> "ocr_score_low"
+            else -> "ocr_ready"
+        }
+
+        return BusinessCardReadiness(
+            ready = ready,
+            score = combinedScore.coerceIn(0.0, 1.0),
+            reason = reason
+        )
+    }
+
+    private fun evaluateCardRegionEvidence(evaluation: StageAEvaluation): Double {
+        val centerDensityScore = (evaluation.metrics.centerEdgeDensity / 0.10).coerceIn(0.0, 1.0)
+        val outerToCenterRatio = if (evaluation.metrics.centerEdgeDensity <= 0.0) {
+            1.0
+        } else {
+            (evaluation.metrics.outerEdgeDensity / evaluation.metrics.centerEdgeDensity)
+                .coerceIn(0.0, 2.0)
+        }
+        val edgeContrastScore = (1.0 - (outerToCenterRatio / 1.2)).coerceIn(0.0, 1.0)
+        val framingScore = when (evaluation.framingOutcome) {
+            FramingOutcome.FRAMING_OK -> 1.0
+            FramingOutcome.FRAMING_SOFT_FAIL -> 0.55
+            FramingOutcome.FRAMING_HARD_FAIL -> 0.0
+        }
+        return (centerDensityScore * 0.45) + (edgeContrastScore * 0.25) + (framingScore * 0.30)
+    }
+
+    private fun evaluateLayoutScore(
+        frameWidth: Int,
+        frameHeight: Int,
+        lines: List<BusinessCardTextLine>
+    ): Double {
+        val boxes = lines.mapNotNull { line ->
+            val left = line.left
+            val right = line.right
+            val top = line.top
+            val bottom = line.bottom
+            if (left == null || right == null || top == null || bottom == null) {
+                null
+            } else if (right <= left || bottom <= top) {
+                null
+            } else {
+                LineBox(left = left, top = top, right = right, bottom = bottom)
+            }
+        }
+        if (boxes.size < 2) {
+            return 0.35
+        }
+
+        val regionLeft = boxes.minOf { it.left }.coerceAtLeast(0f)
+        val regionTop = boxes.minOf { it.top }.coerceAtLeast(0f)
+        val regionRight = boxes.maxOf { it.right }.coerceAtMost(frameWidth.toFloat())
+        val regionBottom = boxes.maxOf { it.bottom }.coerceAtMost(frameHeight.toFloat())
+        val regionWidth = (regionRight - regionLeft).coerceAtLeast(1f)
+        val regionHeight = (regionBottom - regionTop).coerceAtLeast(1f)
+
+        val widthRatio = (regionWidth / frameWidth.toFloat()).toDouble().coerceIn(0.0, 1.0)
+        val heightRatio = (regionHeight / frameHeight.toFloat()).toDouble().coerceIn(0.0, 1.0)
+        val aspectRatio = (regionWidth / regionHeight).toDouble().coerceAtLeast(0.0)
+
+        val leftMean = boxes.map { it.left.toDouble() }.average()
+        val leftVariance = boxes
+            .map { (it.left.toDouble() - leftMean) * (it.left.toDouble() - leftMean) }
+            .average()
+        val leftStdNorm = (kotlin.math.sqrt(leftVariance) / frameWidth.toDouble()).coerceAtLeast(0.0)
+
+        val aspectScore = scoreWithinRange(aspectRatio, minValue = 1.1, maxValue = 6.0)
+        val widthScore = scoreWithinRange(widthRatio, minValue = 0.28, maxValue = 0.95)
+        val heightScore = scoreWithinRange(heightRatio, minValue = 0.16, maxValue = 0.80)
+        val alignmentScore = (1.0 - (leftStdNorm / 0.12)).coerceIn(0.0, 1.0)
+
+        return (aspectScore * 0.30) +
+            (widthScore * 0.25) +
+            (heightScore * 0.20) +
+            (alignmentScore * 0.25)
+    }
+
+    private fun scoreWithinRange(
+        value: Double,
+        minValue: Double,
+        maxValue: Double
+    ): Double {
+        if (value.isNaN()) return 0.0
+        if (minValue <= 0.0 || maxValue <= minValue) return 0.0
+        return when {
+            value in minValue..maxValue -> 1.0
+            value < minValue -> (value / minValue).coerceIn(0.0, 1.0)
+            else -> (maxValue / value).coerceIn(0.0, 1.0)
+        }
+    }
+
+    private data class LineBox(
+        val left: Float,
+        val top: Float,
+        val right: Float,
+        val bottom: Float
+    )
+}
+
 internal data class AutoCaptureDecisionPolicy(
     val minOcrReadyScore: Double,
     val allowSoftFailRelaxedCapture: Boolean = true,
@@ -352,19 +624,6 @@ internal class AutoCaptureStateMachine(
             else -> StageABand.BLOCKED
         }
 
-        if (canCapture) {
-            lastCaptureAt = nowMs
-            captureCount += 1
-            stageACaptureConsecutive = 0
-            stageAOcrConsecutive = 0
-            stageBOcrConsecutive = 0
-            stageACaptureStable = false
-            stageAOcrStable = false
-            stageBReady = false
-            graceUntilMs = Long.MIN_VALUE / 4
-            graceConsumedSinceStable = false
-        }
-
         val blockReason = when {
             evaluation.isSharpnessHardBlock -> "sharpness_hard_block"
             !evaluation.relaxedPassed && !(motionFailure && graceActive) -> evaluation.reason
@@ -402,6 +661,20 @@ internal class AutoCaptureStateMachine(
         stageBOcrConsecutive = if (ready) stageBOcrConsecutive + 1 else 0
         stageBReady = stageBOcrConsecutive >= readyChecksRequired
         return previous != stageBReady
+    }
+
+    @Synchronized
+    fun onCaptureTriggered(nowMs: Long) {
+        lastCaptureAt = nowMs
+        captureCount += 1
+        stageACaptureConsecutive = 0
+        stageAOcrConsecutive = 0
+        stageBOcrConsecutive = 0
+        stageACaptureStable = false
+        stageAOcrStable = false
+        stageBReady = false
+        graceUntilMs = Long.MIN_VALUE / 4
+        graceConsumedSinceStable = false
     }
 
     @Synchronized

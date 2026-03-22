@@ -6,11 +6,15 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
+import android.graphics.Matrix
 import android.net.Uri
 import android.os.Build
 import android.os.SystemClock
 import android.util.Size
 import android.util.Log
+import android.view.OrientationEventListener
+import android.view.Surface
+import android.view.View
 import android.view.ViewGroup
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -45,6 +49,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -60,6 +65,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
@@ -244,6 +250,13 @@ fun ScanScreen(
             )
         )
     }
+    val autoCaptureCountdownController = remember {
+        AutoCaptureCountdownController(
+            stableHoldMs = AUTO_CAPTURE_STABLE_HOLD_MS,
+            countdownMs = AUTO_CAPTURE_COUNTDOWN_MS
+        )
+    }
+    var autoCaptureCountdownUiState by remember { mutableStateOf(AutoCaptureCountdownUiState()) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -287,8 +300,14 @@ fun ScanScreen(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
+            implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+            scaleType = PreviewView.ScaleType.FILL_CENTER
         }
     }
+    var currentDisplayRotation by remember {
+        mutableIntStateOf(resolveDisplayRotation(context, previewView))
+    }
+    var boundPreview by remember { mutableStateOf<Preview?>(null) }
     val imageCapture = remember { ImageCapture.Builder().build() }
     val imageAnalysis = remember {
         ImageAnalysis.Builder()
@@ -297,6 +316,39 @@ fun ScanScreen(
             .build()
     }
     val cameraExecutor: ExecutorService = remember { Executors.newSingleThreadExecutor() }
+
+    DisposableEffect(previewView, context) {
+        val onRotationMaybeChanged = {
+            val resolvedRotation = resolveDisplayRotation(context, previewView)
+            if (resolvedRotation != currentDisplayRotation) {
+                currentDisplayRotation = resolvedRotation
+            }
+        }
+        val orientationListener = object : OrientationEventListener(context) {
+            override fun onOrientationChanged(orientation: Int) {
+                if (orientation == ORIENTATION_UNKNOWN) return
+                onRotationMaybeChanged()
+            }
+        }
+        val layoutChangeListener = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            onRotationMaybeChanged()
+        }
+        previewView.addOnLayoutChangeListener(layoutChangeListener)
+        previewView.post { onRotationMaybeChanged() }
+        if (orientationListener.canDetectOrientation()) {
+            orientationListener.enable()
+        }
+        onDispose {
+            orientationListener.disable()
+            previewView.removeOnLayoutChangeListener(layoutChangeListener)
+        }
+    }
+
+    LaunchedEffect(currentDisplayRotation, boundPreview) {
+        boundPreview?.targetRotation = currentDisplayRotation
+        imageCapture.targetRotation = currentDisplayRotation
+        imageAnalysis.targetRotation = currentDisplayRotation
+    }
 
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -341,6 +393,8 @@ fun ScanScreen(
             autoCaptureStateMachine.reset(SystemClock.elapsedRealtime())
             autoCaptureDecisionEngine.reset()
             lumaFrameAnalyzer.reset()
+            autoCaptureCountdownController.reset()
+            autoCaptureCountdownUiState = AutoCaptureCountdownUiState()
             autoCaptureFailureCount = 0
             autoCaptureDisabledReason = null
             captureError = null
@@ -361,7 +415,14 @@ fun ScanScreen(
         autoCaptureStateMachine.clearTransientState()
         autoCaptureDecisionEngine.reset()
         lumaFrameAnalyzer.reset()
+        autoCaptureCountdownController.reset()
+        autoCaptureCountdownUiState = AutoCaptureCountdownUiState()
         ocrCheckInFlight.set(false)
+        val resolvedRotation = resolveDisplayRotation(context, previewView)
+        currentDisplayRotation = resolvedRotation
+        boundPreview?.targetRotation = resolvedRotation
+        imageCapture.targetRotation = resolvedRotation
+        imageAnalysis.targetRotation = resolvedRotation
         val outputDir = context.cacheDir
         val outputFile = File(
             outputDir,
@@ -393,6 +454,8 @@ fun ScanScreen(
                             captureError = null
                             autoCaptureStateMachine.reset(SystemClock.elapsedRealtime())
                             autoCaptureDecisionEngine.reset()
+                            autoCaptureCountdownController.reset()
+                            autoCaptureCountdownUiState = AutoCaptureCountdownUiState()
                             viewModel.onImageCaptured(bitmap)
                             autoCaptureEnabled = false
                             navController.navigate(Screen.Review.route)
@@ -402,6 +465,8 @@ fun ScanScreen(
                     override fun onError(exception: ImageCaptureException) {
                         mainExecutor.execute {
                             autoCaptureInFlight = false
+                            autoCaptureCountdownController.reset()
+                            autoCaptureCountdownUiState = AutoCaptureCountdownUiState()
                             val reason = exception.message ?: "Image capture failed."
                             if (fromAutoCapture) {
                                 registerAutoCaptureFailure("Auto-capture failed: $reason")
@@ -415,6 +480,8 @@ fun ScanScreen(
             )
         } catch (t: Throwable) {
             autoCaptureInFlight = false
+            autoCaptureCountdownController.reset()
+            autoCaptureCountdownUiState = AutoCaptureCountdownUiState()
             val reason = t.message ?: "Camera capture unavailable."
             if (fromAutoCapture) {
                 registerAutoCaptureFailure("Auto-capture stopped: $reason")
@@ -438,6 +505,7 @@ fun ScanScreen(
         var lastBlockReason: String? = null
         var lastStageAStable = false
         var lastStageBReady = false
+        var lastCountdownUiState = AutoCaptureCountdownUiState()
         val traceEnabled = autoCaptureTraceRecorder.isEnabled
 
         imageAnalysis.setAnalyzer(cameraExecutor) { imageProxy ->
@@ -482,6 +550,14 @@ fun ScanScreen(
                     autoCaptureStateMachine.clearTransientState()
                     autoCaptureDecisionEngine.reset()
                     lumaFrameAnalyzer.reset()
+                    autoCaptureCountdownController.reset()
+                    val idleUi = AutoCaptureCountdownUiState()
+                    if (lastCountdownUiState != idleUi) {
+                        lastCountdownUiState = idleUi
+                        mainExecutor.execute {
+                            autoCaptureCountdownUiState = idleUi
+                        }
+                    }
                     ocrCheckInFlight.set(false)
                     val blockReason = when {
                         !gateEnabled -> "auto_capture_off"
@@ -525,6 +601,14 @@ fun ScanScreen(
 
                 val yPlane = imageProxy.planes.firstOrNull()
                 if (yPlane == null) {
+                    autoCaptureCountdownController.reset()
+                    val idleUi = AutoCaptureCountdownUiState()
+                    if (lastCountdownUiState != idleUi) {
+                        lastCountdownUiState = idleUi
+                        mainExecutor.execute {
+                            autoCaptureCountdownUiState = idleUi
+                        }
+                    }
                     if ("missing_luma_plane" != lastBlockReason) {
                         Log.w(AUTO_CAPTURE_LOG_TAG, "capture_blocked reason=missing_luma_plane")
                         lastBlockReason = "missing_luma_plane"
@@ -609,6 +693,7 @@ fun ScanScreen(
                             val ocrReadiness = evaluateFrameOcrReadiness(
                                 bitmap = previewBitmap,
                                 rotationDegrees = rotation,
+                                stageAEvaluation = stageAEvaluation,
                                 previousReadiness = previousReadiness
                             )
                             lastOcrReadiness.set(ocrReadiness)
@@ -644,7 +729,18 @@ fun ScanScreen(
                     stageAEvaluation = stageAEvaluation,
                     ocrReadiness = ocrReadiness
                 )
-                val shouldCaptureNow = captureDecision.shouldCapture
+                val countdownTick = autoCaptureCountdownController.onReadiness(
+                    nowMs = now,
+                    ready = captureDecision.shouldCapture
+                )
+                val countdownUiState = countdownTick.toUiState()
+                if (countdownUiState != lastCountdownUiState) {
+                    lastCountdownUiState = countdownUiState
+                    mainExecutor.execute {
+                        autoCaptureCountdownUiState = countdownUiState
+                    }
+                }
+                val shouldCaptureNow = countdownTick.shouldCapture
 
                 if (isDebugBuild) {
                     val stageAFailReason = if (stageAEvaluation.strictPassed || stageAEvaluation.relaxedPassed) {
@@ -662,6 +758,9 @@ fun ScanScreen(
                             "stageB_ready_score=${ocrReadiness.score.format2()} " +
                             "stageB_ready_boolean=${tick.stageBReady} " +
                             "near_ready_strikes=${captureDecision.relaxedNearReadyStrikes} " +
+                            "countdown_phase=${countdownTick.phase.name.lowercase()} " +
+                            "countdown_remaining_ms=${countdownTick.countdownRemainingMs} " +
+                            "hold_remaining_ms=${countdownTick.holdRemainingMs} " +
                             "ocr_in_flight=${ocrCheckInFlight.get()} " +
                             "cooldown_remaining_ms=${tick.cooldownRemainingMs}"
                     )
@@ -681,15 +780,24 @@ fun ScanScreen(
                             }}"
                     )
                     lastBlockReason = "capture_trigger"
+                    autoCaptureStateMachine.onCaptureTriggered(now)
                     mainExecutor.execute {
                         captureNowState.value(true)
                     }
                 } else {
-                    val blockReason = if (captureDecision.blockReason == "stage_b_not_ready") {
-                        val ocrReason = lastOcrReadiness.get().reason
-                        "stage_b_not_ready:$ocrReason"
+                    val blockReason = if (!captureDecision.shouldCapture) {
+                        if (captureDecision.blockReason == "stage_b_not_ready") {
+                            val ocrReason = lastOcrReadiness.get().reason
+                            "stage_b_not_ready:$ocrReason"
+                        } else {
+                            captureDecision.blockReason
+                        }
+                    } else if (countdownTick.phase == AutoCaptureCountdownPhase.HOLDING) {
+                        "stable_hold_pending"
+                    } else if (countdownTick.phase == AutoCaptureCountdownPhase.COUNTDOWN) {
+                        "countdown_active"
                     } else {
-                        captureDecision.blockReason
+                        "countdown_pending"
                     }
                     if (blockReason != lastBlockReason) {
                         Log.i(
@@ -698,7 +806,9 @@ fun ScanScreen(
                                 "motionRaw=${stageAEvaluation.metrics.motionRaw.format3()} " +
                                 "motionSmoothed=${stageAEvaluation.metrics.motion.format3()} " +
                                 "luma=${stageAEvaluation.metrics.lumaMean.format1()} " +
-                                "highlight=${(stageAEvaluation.metrics.highlightPct * 100.0).format1()}%"
+                                "highlight=${(stageAEvaluation.metrics.highlightPct * 100.0).format1()}% " +
+                                "holdRemainingMs=${countdownTick.holdRemainingMs} " +
+                                "countdownRemainingMs=${countdownTick.countdownRemainingMs}"
                         )
                         lastBlockReason = blockReason
                     }
@@ -745,7 +855,15 @@ fun ScanScreen(
                 autoCaptureStateMachine.clearTransientState()
                 autoCaptureDecisionEngine.reset()
                 lumaFrameAnalyzer.reset()
+                autoCaptureCountdownController.reset()
                 ocrCheckInFlight.set(false)
+                val idleUi = AutoCaptureCountdownUiState()
+                if (lastCountdownUiState != idleUi) {
+                    lastCountdownUiState = idleUi
+                    mainExecutor.execute {
+                        autoCaptureCountdownUiState = idleUi
+                    }
+                }
                 if (traceEnabled) {
                     autoCaptureTraceRecorder.record(
                         AutoCaptureTraceRecord(
@@ -817,6 +935,9 @@ fun ScanScreen(
             autoCaptureStateMachine.clearTransientState()
             autoCaptureDecisionEngine.reset()
             lumaFrameAnalyzer.reset()
+            autoCaptureCountdownController.reset()
+            autoCaptureCountdownUiState = AutoCaptureCountdownUiState()
+            boundPreview = null
             runCatching { cameraProvider?.unbindAll() }
             runCatching {
                 if (!cameraExecutor.isShutdown) {
@@ -839,6 +960,8 @@ fun ScanScreen(
             autoCaptureStateMachine.clearTransientState()
             autoCaptureDecisionEngine.reset()
             lumaFrameAnalyzer.reset()
+            autoCaptureCountdownController.reset()
+            autoCaptureCountdownUiState = AutoCaptureCountdownUiState()
             galleryLauncher.launch("image/*")
         } else if (!launchGallery && hasLaunchedGallery) {
             autoCaptureEnabled = autoCaptureDisabledReason == null
@@ -853,11 +976,19 @@ fun ScanScreen(
                     cameraProviderFuture.get()
                 }
                 cameraProvider = provider
-                val preview = Preview.Builder().build().apply {
+                val resolvedRotation = resolveDisplayRotation(context, previewView)
+                currentDisplayRotation = resolvedRotation
+                imageCapture.targetRotation = resolvedRotation
+                imageAnalysis.targetRotation = resolvedRotation
+                val preview = Preview.Builder()
+                    .setTargetRotation(resolvedRotation)
+                    .build()
+                    .apply {
                     setSurfaceProvider(previewView.surfaceProvider)
                 }
                 val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
                 if (!provider.hasCamera(cameraSelector)) {
+                    boundPreview = null
                     isCameraReady = false
                     cameraError = "No back camera available on this device."
                     cameraUnavailableType = CameraUnavailableType.HARDWARE_UNAVAILABLE
@@ -865,17 +996,19 @@ fun ScanScreen(
                     return@LaunchedEffect
                 }
                 provider.unbindAll()
-                val camera = provider.bindToLifecycle(
+                provider.bindToLifecycle(
                     lifecycleOwner,
                     cameraSelector,
                     preview,
                     imageCapture,
                     imageAnalysis
                 )
+                boundPreview = preview
                 isCameraReady = true
                 cameraError = null
                 cameraUnavailableType = null
             } catch (e: Exception) {
+                boundPreview = null
                 isCameraReady = false
                 cameraError = e.message ?: "Camera temporarily unavailable."
                 cameraUnavailableType = CameraUnavailableType.TEMPORARY_ERROR
@@ -884,6 +1017,7 @@ fun ScanScreen(
                 isBindingCamera = false
             }
         } else {
+            boundPreview = null
             isCameraReady = false
             isBindingCamera = false
             cameraUnavailableType = CameraUnavailableType.PERMISSION_DENIED
@@ -898,6 +1032,10 @@ fun ScanScreen(
     }
     val cameraStatusHint = when {
         autoCaptureInFlight -> "Capturing..."
+        autoCaptureCountdownUiState.phase == AutoCaptureCountdownPhase.COUNTDOWN ->
+            "Capturing in ${autoCaptureCountdownUiState.countdownSecondsRemaining}s..."
+        autoCaptureCountdownUiState.phase == AutoCaptureCountdownPhase.HOLDING ->
+            "Hold steady..."
         autoCaptureEnabled && isCameraReady -> "Auto on. Hold still."
         else -> "Tap Capture."
     }
@@ -944,6 +1082,8 @@ fun ScanScreen(
                                     autoCaptureStateMachine.reset(SystemClock.elapsedRealtime())
                                     autoCaptureDecisionEngine.reset()
                                     lumaFrameAnalyzer.reset()
+                                    autoCaptureCountdownController.reset()
+                                    autoCaptureCountdownUiState = AutoCaptureCountdownUiState()
                                     ocrCheckInFlight.set(false)
                                     lastOcrReadiness.set(
                                         OcrReadiness(
@@ -1154,6 +1294,8 @@ private const val AUTO_CAPTURE_REQUIRED_OCR_STABLE_FRAMES = 1
 private const val AUTO_CAPTURE_REQUIRED_READY_CHECKS = 1
 private const val AUTO_CAPTURE_MIN_CAPTURE_INTERVAL_MS = 900L
 private const val AUTO_CAPTURE_FIRST_CAPTURE_INTERVAL_MS = 400L
+private const val AUTO_CAPTURE_STABLE_HOLD_MS = 700L
+private const val AUTO_CAPTURE_COUNTDOWN_MS = 1200L
 private const val AUTO_CAPTURE_OCR_CHECK_INTERVAL_MS = 250L
 private const val AUTO_CAPTURE_FAST_OCR_CHECK_INTERVAL_MS = 150L
 private const val AUTO_CAPTURE_OCR_TIMEOUT_MS = 700L
@@ -1186,16 +1328,47 @@ private const val DEFAULT_AUTO_CAPTURE_MIN_CENTER_EDGE_DENSITY = 0.055
 private const val DEFAULT_AUTO_CAPTURE_MAX_OUTER_TO_CENTER_EDGE_RATIO = 0.92
 private const val DEFAULT_AUTO_CAPTURE_EDGE_THRESHOLD = 20
 
-private val EMAIL_PATTERN = Regex("[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}")
-private val DOMAIN_PATTERN = Regex("\\b[a-z0-9-]+\\.(com|net|org|io|co|ai|biz|us|uk|de|fr|jp)\\b")
-private val NAME_LINE_PATTERN = Regex("\\b[A-Z][a-zA-Z]{1,}\\s+[A-Z][a-zA-Z]{1,}\\b")
-private val COMPANY_LINE_PATTERN =
-    Regex("\\b(inc|llc|ltd|corp|co\\.|company|technologies|technology|solutions|studio)\\b", RegexOption.IGNORE_CASE)
-
 private val DISABLED_TRACE_RECORDER = object : AutoCaptureTraceRecorder {
     override val isEnabled: Boolean = false
     override fun record(record: AutoCaptureTraceRecord) = Unit
     override fun close() = Unit
+}
+
+private data class AutoCaptureCountdownUiState(
+    val phase: AutoCaptureCountdownPhase = AutoCaptureCountdownPhase.IDLE,
+    val countdownSecondsRemaining: Int = 0
+)
+
+private fun AutoCaptureCountdownTick.toUiState(): AutoCaptureCountdownUiState {
+    if (phase != AutoCaptureCountdownPhase.COUNTDOWN) {
+        return AutoCaptureCountdownUiState(phase = phase, countdownSecondsRemaining = 0)
+    }
+    val secondsRemaining = if (countdownRemainingMs <= 0L) {
+        0
+    } else {
+        ((countdownRemainingMs + 999L) / 1000L).toInt().coerceAtLeast(1)
+    }
+    return AutoCaptureCountdownUiState(
+        phase = phase,
+        countdownSecondsRemaining = secondsRemaining
+    )
+}
+
+private fun resolveDisplayRotation(context: Context, previewView: PreviewView): Int {
+    val resolved = previewView.display?.rotation ?: run {
+        if (Build.VERSION.SDK_INT >= 30) {
+            context.display?.rotation
+        } else {
+            null
+        }
+    } ?: Surface.ROTATION_0
+    return when (resolved) {
+        Surface.ROTATION_0,
+        Surface.ROTATION_90,
+        Surface.ROTATION_180,
+        Surface.ROTATION_270 -> resolved
+        else -> Surface.ROTATION_0
+    }
 }
 
 private fun resolveAppVersionName(context: Context): String {
@@ -1227,13 +1400,15 @@ private fun decodeBitmapFromFile(file: File, maxDimension: Int): Bitmap? {
             inSampleSize = sampleSize
             inPreferredConfig = Bitmap.Config.ARGB_8888
         }
-        BitmapFactory.decodeFile(file.path, decodeOptions)
+        val decoded = BitmapFactory.decodeFile(file.path, decodeOptions) ?: return null
+        val exifOrientation = readExifOrientation(file)
+        normalizeBitmapOrientation(decoded, exifOrientation)
     }.getOrNull()
 }
 
 private fun decodeBitmapFromUri(context: Context, uri: Uri, maxDimension: Int): Bitmap? {
     return runCatching {
-        if (Build.VERSION.SDK_INT >= 28) {
+        val decoded = if (Build.VERSION.SDK_INT >= 28) {
             val source = ImageDecoder.createSource(context.contentResolver, uri)
             ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
                 val size = info.size
@@ -1262,8 +1437,89 @@ private fun decodeBitmapFromUri(context: Context, uri: Uri, maxDimension: Int): 
             resolver.openInputStream(uri)?.use { input ->
                 BitmapFactory.decodeStream(input, null, decodeOptions)
             }
-        }
+        } ?: return null
+        val exifOrientation = readExifOrientation(context, uri)
+        normalizeBitmapOrientation(decoded, exifOrientation)
     }.getOrNull()
+}
+
+internal data class ExifOrientationTransform(
+    val rotationDegrees: Int = 0,
+    val mirrorHorizontally: Boolean = false
+)
+
+internal fun exifOrientationTransform(orientation: Int): ExifOrientationTransform {
+    return when (orientation) {
+        ExifInterface.ORIENTATION_FLIP_HORIZONTAL ->
+            ExifOrientationTransform(rotationDegrees = 0, mirrorHorizontally = true)
+        ExifInterface.ORIENTATION_ROTATE_180 ->
+            ExifOrientationTransform(rotationDegrees = 180, mirrorHorizontally = false)
+        ExifInterface.ORIENTATION_FLIP_VERTICAL ->
+            ExifOrientationTransform(rotationDegrees = 180, mirrorHorizontally = true)
+        ExifInterface.ORIENTATION_TRANSPOSE ->
+            ExifOrientationTransform(rotationDegrees = 90, mirrorHorizontally = true)
+        ExifInterface.ORIENTATION_ROTATE_90 ->
+            ExifOrientationTransform(rotationDegrees = 90, mirrorHorizontally = false)
+        ExifInterface.ORIENTATION_TRANSVERSE ->
+            ExifOrientationTransform(rotationDegrees = 270, mirrorHorizontally = true)
+        ExifInterface.ORIENTATION_ROTATE_270 ->
+            ExifOrientationTransform(rotationDegrees = 270, mirrorHorizontally = false)
+        else ->
+            ExifOrientationTransform(rotationDegrees = 0, mirrorHorizontally = false)
+    }
+}
+
+private fun normalizeBitmapOrientation(bitmap: Bitmap, exifOrientation: Int): Bitmap {
+    val transform = exifOrientationTransform(exifOrientation)
+    if (transform.rotationDegrees == 0 && !transform.mirrorHorizontally) {
+        return bitmap
+    }
+    if (bitmap.width <= 0 || bitmap.height <= 0) {
+        return bitmap
+    }
+
+    val matrix = Matrix().apply {
+        if (transform.rotationDegrees != 0) {
+            postRotate(transform.rotationDegrees.toFloat())
+        }
+        if (transform.mirrorHorizontally) {
+            postScale(-1f, 1f)
+        }
+    }
+    return runCatching {
+        Bitmap.createBitmap(
+            bitmap,
+            0,
+            0,
+            bitmap.width,
+            bitmap.height,
+            matrix,
+            true
+        )
+    }.getOrElse {
+        bitmap
+    }
+}
+
+private fun readExifOrientation(file: File): Int {
+    return runCatching {
+        ExifInterface(file.absolutePath)
+            .getAttributeInt(
+                ExifInterface.TAG_ORIENTATION,
+                ExifInterface.ORIENTATION_NORMAL
+            )
+    }.getOrDefault(ExifInterface.ORIENTATION_NORMAL)
+}
+
+private fun readExifOrientation(context: Context, uri: Uri): Int {
+    return runCatching {
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            ExifInterface(input).getAttributeInt(
+                ExifInterface.TAG_ORIENTATION,
+                ExifInterface.ORIENTATION_NORMAL
+            )
+        } ?: ExifInterface.ORIENTATION_NORMAL
+    }.getOrDefault(ExifInterface.ORIENTATION_NORMAL)
 }
 
 private fun calculateInSampleSize(width: Int, height: Int, maxDimension: Int): Int {
@@ -1323,12 +1579,13 @@ private fun buildPreviewBitmapForOcr(
 private suspend fun evaluateFrameOcrReadiness(
     bitmap: Bitmap,
     rotationDegrees: Int,
+    stageAEvaluation: StageAEvaluation,
     previousReadiness: OcrReadiness
 ): OcrReadiness {
     return try {
         val timeoutMs = adaptiveOcrTimeoutMs(previousReadiness)
-        val quickResult = withTimeoutOrNull(timeoutMs) {
-            TextRecognitionManager.recognizeTextQuick(bitmap, rotationDegrees)
+        val result = withTimeoutOrNull(timeoutMs) {
+            TextRecognitionManager.recognizeTextStructured(bitmap, rotationDegrees)
         } ?: return OcrReadiness(
             ready = false,
             score = 0.0,
@@ -1336,40 +1593,35 @@ private suspend fun evaluateFrameOcrReadiness(
             reason = "ocr_timeout"
         )
 
-        val lines = quickResult.text
-            .lineSequence()
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
-            .toList()
+        val readiness = BusinessCardReadinessEvaluator.evaluate(
+            BusinessCardEvidenceInput(
+                frameWidth = bitmap.width,
+                frameHeight = bitmap.height,
+                blockCount = result.blockCount,
+                lineCount = result.lineCount,
+                text = result.text,
+                lines = result.lines.map { line ->
+                    BusinessCardTextLine(
+                        text = line.text,
+                        left = line.left,
+                        top = line.top,
+                        right = line.right,
+                        bottom = line.bottom
+                    )
+                },
+                stageAEvaluation = stageAEvaluation
+            )
+        )
 
-        val hasEmailOrDomain = EMAIL_PATTERN.containsMatchIn(quickResult.text) ||
-            DOMAIN_PATTERN.containsMatchIn(quickResult.text.lowercase())
-        val hasNameLikeLine = lines.any { NAME_LINE_PATTERN.containsMatchIn(it) }
-        val hasCompanyLikeLine = lines.any { COMPANY_LINE_PATTERN.containsMatchIn(it) }
-        val hasPatternSignal = hasEmailOrDomain || hasNameLikeLine || hasCompanyLikeLine
-
-        val alnumCount = quickResult.text.count { it.isLetterOrDigit() }
-        val blockScore = quickResult.blockCount.coerceAtMost(4).toDouble() / 4.0
-        val lineScore = quickResult.lineCount.coerceAtMost(8).toDouble() / 8.0
-        val textScore = alnumCount.coerceAtMost(64).toDouble() / 64.0
-        val patternScore = if (hasPatternSignal) 1.0 else 0.0
-        val score = (blockScore * 0.40) + (lineScore * 0.25) + (textScore * 0.15) + (patternScore * 0.20)
-        val ready = quickResult.blockCount >= AUTO_CAPTURE_MIN_OCR_BLOCKS &&
-            hasPatternSignal &&
-            score >= AUTO_CAPTURE_MIN_OCR_READY_SCORE
-
-        val reason = when {
-            quickResult.blockCount < AUTO_CAPTURE_MIN_OCR_BLOCKS -> "ocr_blocks_low"
-            !hasPatternSignal -> "ocr_pattern_missing"
-            score < AUTO_CAPTURE_MIN_OCR_READY_SCORE -> "ocr_score_low"
-            else -> "ocr_ready"
-        }
+        val ready = result.blockCount >= AUTO_CAPTURE_MIN_OCR_BLOCKS &&
+            readiness.ready &&
+            readiness.score >= AUTO_CAPTURE_MIN_OCR_READY_SCORE
 
         OcrReadiness(
             ready = ready,
-            score = score.coerceIn(0.0, 1.0),
-            blocks = quickResult.blockCount,
-            reason = reason
+            score = readiness.score.coerceIn(0.0, 1.0),
+            blocks = result.blockCount,
+            reason = readiness.reason
         )
     } catch (t: Throwable) {
         OcrReadiness(

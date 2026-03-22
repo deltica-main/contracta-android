@@ -4,7 +4,7 @@ import java.io.File
 import java.util.Locale
 
 internal const val AUTO_CAPTURE_TRACE_SCHEMA_VERSION = 2
-internal const val AUTO_CAPTURE_DECISION_PARSER_VERSION = "auto_capture_decision_v2"
+internal const val AUTO_CAPTURE_DECISION_PARSER_VERSION = "auto_capture_decision_v3"
 
 internal data class AutoCaptureTraceConstantsSnapshot(
     val analysisIntervalMs: Long = 100L,
@@ -492,6 +492,7 @@ internal class AutoCaptureTraceReplayRunner {
             }
             if (shouldCaptureNow) {
                 captureFiredCount += 1
+                stateMachine.onCaptureTriggered(record.timestampMs)
                 if (eval.isFramingSoftFail) {
                     softFailCaptureCount += 1
                 }

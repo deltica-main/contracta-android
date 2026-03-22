@@ -933,41 +933,14 @@ class MainViewModel(
     fun assignUnassignedItem(itemId: String, targetField: ReviewAssignmentField) {
         _scanUiState.update { current ->
             val item = current.unassignedItems.firstOrNull { it.id == itemId } ?: return@update current
-            val updatedFields = when (targetField) {
-                ReviewAssignmentField.NAME -> current.reviewFields.copy(
-                    name = appendAssignedValue(current.reviewFields.name, item.displayText, " | ")
-                )
-                ReviewAssignmentField.TITLE -> current.reviewFields.copy(
-                    title = appendAssignedValue(current.reviewFields.title, item.displayText, " | ")
-                )
-                ReviewAssignmentField.COMPANY -> current.reviewFields.copy(
-                    company = appendAssignedValue(current.reviewFields.company, item.displayText, " | ")
-                )
-                ReviewAssignmentField.EMAIL -> current.reviewFields.copy(
-                    email = appendAssignedValue(current.reviewFields.email, item.displayText, " | ")
-                )
-                ReviewAssignmentField.PHONE -> current.reviewFields.copy(
-                    phone = appendAssignedValue(current.reviewFields.phone, item.displayText, " | ")
-                )
-                ReviewAssignmentField.WEBSITE -> current.reviewFields.copy(
-                    website = appendAssignedValue(current.reviewFields.website, item.displayText, " | ")
-                )
-                ReviewAssignmentField.ADDRESS -> current.reviewFields.copy(
-                    address = appendAssignedValue(current.reviewFields.address, item.displayText, "\n")
-                )
-                ReviewAssignmentField.INDUSTRY -> current.reviewFields.copy(
-                    industry = appendAssignedValue(current.reviewFields.industry, item.displayText, " | "),
-                    industryCustom = "",
-                    industrySource = IndustrySource.USER_SELECTED
-                )
-                ReviewAssignmentField.NOTES -> current.reviewFields
-            }.normalizeIndustrySource()
-
-            val updatedNotes = if (targetField == ReviewAssignmentField.NOTES) {
-                appendAssignedValue(current.reviewAssignmentNotes, item.displayText, "\n\n")
-            } else {
-                current.reviewAssignmentNotes
-            }
+            val assignment = applyReviewAssignmentUpdate(
+                fields = current.reviewFields,
+                currentNotes = current.reviewAssignmentNotes,
+                targetField = targetField,
+                incomingText = item.displayText
+            )
+            val updatedFields = assignment.fields.normalizeIndustrySource()
+            val updatedNotes = assignment.notes
 
             current.copy(
                 reviewFields = updatedFields,
@@ -1312,20 +1285,6 @@ class MainViewModel(
             reviewLower.contains(meetingLower) -> review
             else -> "$review\n\n$meeting"
         }
-    }
-
-    private fun appendAssignedValue(existing: String, incoming: String, separator: String): String {
-        val normalizedIncoming = incoming.trim()
-        if (normalizedIncoming.isBlank()) return existing
-        val normalizedExisting = existing.trim()
-        if (normalizedExisting.isBlank()) return normalizedIncoming
-
-        val existingLower = normalizedExisting.lowercase()
-        val incomingLower = normalizedIncoming.lowercase()
-        if (existingLower.contains(incomingLower)) return normalizedExisting
-        if (incomingLower.contains(existingLower)) return normalizedIncoming
-
-        return normalizedExisting + separator + normalizedIncoming
     }
 
     private fun ReviewFields.normalizeIndustrySource(): ReviewFields {
@@ -1918,6 +1877,81 @@ class MainViewModel(
         return Regex("\\b([a-z0-9-]+\\.)+[a-z]{2,}\\b", RegexOption.IGNORE_CASE)
             .containsMatchIn(value)
     }
+}
+
+internal data class ReviewAssignmentUpdate(
+    val fields: ReviewFields,
+    val notes: String
+)
+
+internal fun applyReviewAssignmentUpdate(
+    fields: ReviewFields,
+    currentNotes: String,
+    targetField: ReviewAssignmentField,
+    incomingText: String
+): ReviewAssignmentUpdate {
+    return when (targetField) {
+        ReviewAssignmentField.NAME -> ReviewAssignmentUpdate(
+            fields = fields.copy(name = replaceAssignedValue(fields.name, incomingText)),
+            notes = currentNotes
+        )
+        ReviewAssignmentField.TITLE -> ReviewAssignmentUpdate(
+            fields = fields.copy(title = replaceAssignedValue(fields.title, incomingText)),
+            notes = currentNotes
+        )
+        ReviewAssignmentField.COMPANY -> ReviewAssignmentUpdate(
+            fields = fields.copy(company = replaceAssignedValue(fields.company, incomingText)),
+            notes = currentNotes
+        )
+        ReviewAssignmentField.EMAIL -> ReviewAssignmentUpdate(
+            fields = fields.copy(email = replaceAssignedValue(fields.email, incomingText)),
+            notes = currentNotes
+        )
+        ReviewAssignmentField.PHONE -> ReviewAssignmentUpdate(
+            fields = fields.copy(phone = replaceAssignedValue(fields.phone, incomingText)),
+            notes = currentNotes
+        )
+        ReviewAssignmentField.WEBSITE -> ReviewAssignmentUpdate(
+            fields = fields.copy(website = replaceAssignedValue(fields.website, incomingText)),
+            notes = currentNotes
+        )
+        ReviewAssignmentField.ADDRESS -> ReviewAssignmentUpdate(
+            fields = fields.copy(address = replaceAssignedValue(fields.address, incomingText)),
+            notes = currentNotes
+        )
+        ReviewAssignmentField.INDUSTRY -> ReviewAssignmentUpdate(
+            fields = fields.copy(
+                industry = replaceAssignedValue(fields.industry, incomingText),
+                industryCustom = "",
+                industrySource = IndustrySource.USER_SELECTED
+            ),
+            notes = currentNotes
+        )
+        ReviewAssignmentField.NOTES -> ReviewAssignmentUpdate(
+            fields = fields,
+            notes = appendAssignedValue(currentNotes, incomingText, "\n\n")
+        )
+    }
+}
+
+internal fun replaceAssignedValue(existing: String, incoming: String): String {
+    val normalizedIncoming = incoming.trim()
+    if (normalizedIncoming.isBlank()) return existing
+    return normalizedIncoming
+}
+
+internal fun appendAssignedValue(existing: String, incoming: String, separator: String): String {
+    val normalizedIncoming = incoming.trim()
+    if (normalizedIncoming.isBlank()) return existing
+    val normalizedExisting = existing.trim()
+    if (normalizedExisting.isBlank()) return normalizedIncoming
+
+    val existingLower = normalizedExisting.lowercase()
+    val incomingLower = normalizedIncoming.lowercase()
+    if (existingLower.contains(incomingLower)) return normalizedExisting
+    if (incomingLower.contains(existingLower)) return normalizedIncoming
+
+    return normalizedExisting + separator + normalizedIncoming
 }
 
 private const val DUPLICATE_UX_PREFS = "duplicate_merge_ux_prefs"
